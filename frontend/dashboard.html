@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ICSD Panel — داشبورد</title>
+<!--
+  داشبورد تک‌فایل فاز ۰ (نمونهٔ قابل‌اجرا). در فاز ۲ با Vue 3 جایگزین می‌شود.
+  Phase 0 single-file dashboard. CDNها در ایران ممکن است محدود باشند؛ در نسخهٔ
+  پروداکشن کتابخانه‌ها به‌صورت محلی bundle می‌شوند.
+-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a212b; --panel-2: #222b38;
+    --text: #e6edf3; --muted: #8b97a7; --line: #2c3743;
+    --accent: #1f9d6b; --accent-2: #2dd4a7; --warn: #e0a800; --danger: #e5484d;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  }
+  html[dir="ltr"] body { font-family: "Segoe UI", system-ui, sans-serif; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-weight: 800; color: #04130d;
+  }
+  .brand h1 { font-size: 18px; margin: 0; }
+  .brand small { color: var(--muted); font-size: 11px; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); display: inline-block; }
+  .status-dot.live { background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2); }
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 14px; cursor: pointer; font-family: inherit; font-size: 13px;
+  }
+  button:hover { border-color: var(--accent); }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; min-height: 120px;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .stat { font-size: 30px; font-weight: 800; margin: 6px 0; }
+  .stat small { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .bar { height: 8px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .4s; }
+  .bar.warn > span { background: linear-gradient(90deg, var(--warn), #f7c948); }
+  .bar.danger > span { background: linear-gradient(90deg, var(--danger), #ff7a7d); }
+  .chart-card { grid-column: 1 / -1; }
+  .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; }
+  .pill.up { background: rgba(45,212,167,.15); color: var(--accent-2); }
+  .pill.down { background: rgba(229,72,77,.15); color: var(--danger); }
+  .muted { color: var(--muted); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">IC</div>
+    <div>
+      <h1 data-i18n="title">پنل مدیریت سرور ICSD</h1>
+      <small data-i18n="subtitle">شرکت توسعه هوشمند فرش ایرانیان</small>
+    </div>
+  </div>
+  <div class="controls">
+    <span><span class="status-dot" id="statusDot"></span> <span id="statusText" data-i18n="connecting">در حال اتصال…</span></span>
+    <button id="langBtn">EN</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <div class="card">
+      <h3 data-i18n="cpu">پردازنده (CPU)</h3>
+      <div class="stat"><span id="cpuPct">—</span><small>%</small></div>
+      <div class="bar" id="cpuBar"><span style="width:0"></span></div>
+      <div class="muted" style="margin-top:8px; font-size:12px;"><span data-i18n="load">بار سیستم</span>: <span id="load">—</span></div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="ram">حافظه (RAM)</h3>
+      <div class="stat"><span id="memPct">—</span><small>%</small></div>
+      <div class="bar" id="memBar"><span style="width:0"></span></div>
+      <div class="muted" style="margin-top:8px; font-size:12px;"><span id="memUsed">—</span> / <span id="memTotal">—</span></div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="net">پهنای باند</h3>
+      <div style="display:flex; gap:16px; align-items:baseline; margin-top:6px;">
+        <div><span class="pill up">▲ <span id="netUp">—</span></span></div>
+        <div><span class="pill down">▼ <span id="netDown">—</span></span></div>
+      </div>
+      <div class="muted" style="margin-top:14px; font-size:12px;">
+        <span data-i18n="uptime">آپ‌تایم</span>: <span id="uptime">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="services">وضعیت سرویس‌ها</h3>
+      <div id="services" class="muted" style="font-size:13px;">—</div>
+    </div>
+
+    <div class="card chart-card">
+      <h3 data-i18n="liveChart">نمودار زندهٔ مصرف منابع</h3>
+      <canvas id="chart" height="90"></canvas>
+    </div>
+
+    <div class="card chart-card">
+      <h3 data-i18n="disks">دیسک‌ها</h3>
+      <div id="disks"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  ICSD Panel v0.1 — <span data-i18n="license">متن‌باز تحت GPLv3</span>
+</footer>
+
+<script>
+const I18N = {
+  fa: { title:"پنل مدیریت سرور ICSD", subtitle:"شرکت توسعه هوشمند فرش ایرانیان",
+    cpu:"پردازنده (CPU)", ram:"حافظه (RAM)", net:"پهنای باند", services:"وضعیت سرویس‌ها",
+    liveChart:"نمودار زندهٔ مصرف منابع", disks:"دیسک‌ها", load:"بار سیستم", uptime:"آپ‌تایم",
+    connecting:"در حال اتصال…", live:"زنده", offline:"قطع", license:"متن‌باز تحت GPLv3",
+    cpuLbl:"پردازنده", ramLbl:"حافظه", noSvc:"سرویسی شناسایی نشد" },
+  en: { title:"ICSD Server Panel", subtitle:"Iranian Carpet Smart Development",
+    cpu:"CPU", ram:"Memory (RAM)", net:"Bandwidth", services:"Services Status",
+    liveChart:"Live Resource Usage", disks:"Disks", load:"Load avg", uptime:"Uptime",
+    connecting:"Connecting…", live:"Live", offline:"Offline", license:"Open-source under GPLv3",
+    cpuLbl:"CPU", ramLbl:"Memory", noSvc:"No services detected" }
+};
+let lang = "fa";
+
+function applyLang() {
+  const html = document.documentElement;
+  html.lang = lang; html.dir = lang === "fa" ? "rtl" : "ltr";
+  document.getElementById("langBtn").textContent = lang === "fa" ? "EN" : "فا";
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (I18N[lang][k]) el.textContent = I18N[lang][k];
+  });
+  if (chart) {
+    chart.data.datasets[0].label = I18N[lang].cpuLbl;
+    chart.data.datasets[1].label = I18N[lang].ramLbl;
+    chart.update();
+  }
+}
+document.getElementById("langBtn").onclick = () => { lang = lang === "fa" ? "en" : "fa"; applyLang(); };
+
+function fmtBytes(b) {
+  if (!b && b !== 0) return "—";
+  const u = ["B","KB","MB","GB","TB"]; let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return b.toFixed(1) + " " + u[i];
+}
+function fmtRate(b) { return fmtBytes(b) + "/s"; }
+function fmtUptime(s) {
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  return (d? d+"d ":"") + h + "h " + m + "m";
+}
+function setBar(id, pct) {
+  const bar = document.getElementById(id);
+  bar.className = "bar" + (pct >= 90 ? " danger" : pct >= 70 ? " warn" : "");
+  bar.firstElementChild.style.width = pct + "%";
+}
+
+// Chart setup
+let chart;
+const MAX = 30;
+const ctx = document.getElementById("chart").getContext("2d");
+chart = new Chart(ctx, {
+  type: "line",
+  data: { labels: Array(MAX).fill(""), datasets: [
+    { label: I18N[lang].cpuLbl, data: Array(MAX).fill(null), borderColor: "#2dd4a7", backgroundColor: "rgba(45,212,167,.12)", fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
+    { label: I18N[lang].ramLbl, data: Array(MAX).fill(null), borderColor: "#5b9dff", backgroundColor: "rgba(91,157,255,.10)", fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
+  ]},
+  options: {
+    animation: false, responsive: true, maintainAspectRatio: true,
+    scales: { y: { min:0, max:100, grid:{color:"#2c3743"}, ticks:{color:"#8b97a7"} },
+              x: { grid:{display:false}, ticks:{display:false} } },
+    plugins: { legend: { labels: { color:"#e6edf3" } } }
+  }
+});
+
+function render(d) {
+  document.getElementById("cpuPct").textContent = d.cpu.percent.toFixed(0);
+  setBar("cpuBar", d.cpu.percent);
+  document.getElementById("load").textContent = d.cpu.load_avg ? d.cpu.load_avg.join(" / ") : "—";
+
+  document.getElementById("memPct").textContent = d.memory.percent.toFixed(0);
+  setBar("memBar", d.memory.percent);
+  document.getElementById("memUsed").textContent = fmtBytes(d.memory.used);
+  document.getElementById("memTotal").textContent = fmtBytes(d.memory.total);
+
+  document.getElementById("netUp").textContent = fmtRate(d.network.up_bytes_per_sec);
+  document.getElementById("netDown").textContent = fmtRate(d.network.down_bytes_per_sec);
+  document.getElementById("uptime").textContent = fmtUptime(d.uptime_seconds);
+
+  // disks
+  document.getElementById("disks").innerHTML = d.disk.map(p =>
+    `<div class="row"><span>${p.mountpoint} <span class="muted">(${p.fstype})</span></span>
+     <span>${fmtBytes(p.used)} / ${fmtBytes(p.total)} — ${p.percent}%</span></div>`
+  ).join("") || `<span class="muted">—</span>`;
+
+  // chart
+  chart.data.datasets[0].data.push(d.cpu.percent);
+  chart.data.datasets[1].data.push(d.memory.percent);
+  chart.data.datasets[0].data.shift();
+  chart.data.datasets[1].data.shift();
+  chart.update();
+}
+
+async function loadServices() {
+  try {
+    const r = await fetch("/api/system/services");
+    const j = await r.json();
+    const el = document.getElementById("services");
+    if (!j.services.length) { el.textContent = I18N[lang].noSvc; return; }
+    el.innerHTML = j.services.map(s =>
+      `<div class="row"><span>${s.name}</span>
+       <span class="pill ${s.active?'up':'down'}">${s.active?'● active':'● stopped'}</span></div>`
+    ).join("");
+  } catch (e) { /* ignore */ }
+}
+
+function setStatus(live) {
+  document.getElementById("statusDot").className = "status-dot" + (live ? " live" : "");
+  document.getElementById("statusText").textContent = live ? I18N[lang].live : I18N[lang].offline;
+}
+
+// WebSocket live stream with REST fallback
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  let ws;
+  try { ws = new WebSocket(`${proto}://${location.host}/api/monitoring/ws`); }
+  catch (e) { return fallback(); }
+  ws.onopen = () => setStatus(true);
+  ws.onmessage = (ev) => render(JSON.parse(ev.data));
+  ws.onclose = () => { setStatus(false); setTimeout(connect, 3000); };
+  ws.onerror = () => { try { ws.close(); } catch(e){} };
+}
+function fallback() {
+  setInterval(async () => {
+    try { const r = await fetch("/api/monitoring/snapshot"); setStatus(true); render(await r.json()); }
+    catch (e) { setStatus(false); }
+  }, 2000);
+}
+
+applyLang();
+connect();
+loadServices();
+setInterval(loadServices, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# ICSD Panel — backend dependencies (kept intentionally lean for restricted networks)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+psutil>=5.9
+pydantic>=2.6
+Jinja2>=3.1
+APScheduler>=3.10
+bcrypt>=4.1            # password hashing (only crypto dependency)
+paramiko>=3.4          # SFTP backups (FTP uses stdlib ftplib)
+python-multipart>=0.0.9 # file uploads (file manager)
+# Note: persistence uses stdlib sqlite3 (no ORM); JWT (HS256) and TOTP (RFC 6238)
+#       are implemented with the stdlib in app/core/security.py — no pyjwt/pyotp.

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ICSD Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f1419;--panel:#1a212b;--panel2:#222b38;--text:#e6edf3;--muted:#8b97a7;
+    --line:#2c3743;--accent:#12a28e;--accent2:#1ad1b5;--warn:#e0a800;--danger:#e5484d;--r:14px}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Vazirmatn","Segoe UI",Tahoma,sans-serif}
+  html[dir=ltr] body{font-family:"Segoe UI",system-ui,sans-serif}
+  a{color:var(--accent2)}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;
+    padding:8px 14px;cursor:pointer;font-family:inherit;font-size:13px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#04130d;border:none;font-weight:700}
+  button.danger{border-color:var(--danger);color:#ff9ca0}
+  input,select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;font-family:inherit;font-size:13px;width:100%}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  .hidden{display:none!important}
+  /* layout */
+  #app{display:flex;min-height:100vh}
+  aside{width:230px;background:var(--panel);border-inline-end:1px solid var(--line);padding:16px;flex-shrink:0}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .logo{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+  .logo img,.logo svg{width:100%;height:100%;object-fit:contain;display:block}
+  nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:var(--text);
+    text-decoration:none;font-size:14px;margin-bottom:4px;cursor:pointer}
+  nav a:hover{background:var(--panel2)}
+  nav a.active{background:var(--panel2);color:var(--accent2);font-weight:700}
+  main{flex:1;padding:24px;max-width:1100px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .card h3{margin:0 0 4px;font-size:13px;color:var(--muted);font-weight:600}
+  .stat{font-size:28px;font-weight:800;margin:6px 0}.stat small{font-size:13px;color:var(--muted)}
+  .bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:10px}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s}
+  .bar.warn>span{background:linear-gradient(90deg,var(--warn),#f7c948)}
+  .bar.danger>span{background:linear-gradient(90deg,var(--danger),#ff7a7d)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:start;padding:10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  .pill{font-size:11px;padding:3px 9px;border-radius:99px}
+  .pill.up{background:rgba(45,212,167,.15);color:var(--accent2)}
+  .pill.down{background:rgba(229,72,77,.15);color:var(--danger)}
+  .muted{color:var(--muted)}
+  .toast{position:fixed;inset-block-end:20px;inset-inline-end:20px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:13px;max-width:340px;z-index:99}
+  .toast.err{border-color:var(--danger)}.toast.ok{border-color:var(--accent)}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px;overflow:auto;font-size:12px;max-height:280px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:50}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:22px;width:min(520px,92vw);max-height:88vh;overflow:auto}
+  /* login */
+  #login{display:grid;place-items:center;min-height:100vh;width:100%}
+  .loginbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:32px;width:min(380px,92vw)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="loginbox">
+    <div class="brand" style="justify-content:center"><div class="logo"><img src="/static/logo/icsd-logo-1.svg" alt="ICSD"></div>
+      <div><b data-i18n="title">پنل مدیریت سرور ICSD</b><br><small class="muted" data-i18n="subtitle">توسعه هوشمند فرش ایرانیان</small></div></div>
+    <label data-i18n="username">نام کاربری</label><input id="li_user" value="admin" autocomplete="username">
+    <label data-i18n="password">رمز عبور</label><input id="li_pass" type="password" autocomplete="current-password">
+    <label data-i18n="otp">کد ۲مرحله‌ای (در صورت فعال بودن)</label><input id="li_otp" inputmode="numeric" placeholder="------">
+    <button class="primary" style="width:100%;margin-top:18px" onclick="doLogin()" data-i18n="login">ورود</button>
+    <div style="text-align:center;margin-top:14px"><button onclick="toggleLang()" id="li_lang">EN</button></div>
+    <p class="muted" style="font-size:11px;margin-top:14px" data-i18n="defcred">پیش‌فرض: admin / admin12345 — پس از ورود حتماً تغییر دهید</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <aside>
+    <div class="brand"><div class="logo"><img src="/static/logo/icsd-logo-1.svg" alt="ICSD"></div><div><b style="font-size:15px">ICSD Panel</b></div></div>
+    <nav id="nav">
+      <a data-view="dashboard" class="active">📊 <span data-i18n="nav_dash">داشبورد</span></a>
+      <a data-view="sites">🌐 <span data-i18n="nav_sites">سایت‌ها</span></a>
+      <a data-view="files">📁 <span data-i18n="nav_files">فایل‌ها</span></a>
+      <a data-view="ftp">🔌 <span data-i18n="nav_ftp">حساب‌های FTP</span></a>
+      <a data-view="databases">🗄️ <span data-i18n="nav_db">دیتابیس‌ها</span></a>
+      <a data-view="apps">🧩 <span data-i18n="nav_apps">برنامه‌ها</span></a>
+      <a data-view="pyapps">🐍 <span data-i18n="nav_pyapps">پایتون/جنگو</span></a>
+      <a data-view="ssl">🔒 <span data-i18n="nav_ssl">گواهی SSL</span></a>
+      <a data-view="email">✉️ <span data-i18n="nav_email">ایمیل</span></a>
+      <a data-view="security">🛡️ <span data-i18n="nav_sec">امنیت</span></a>
+      <a data-view="logs">📜 <span data-i18n="nav_logs">لاگ‌ها</span></a>
+      <a data-view="cron">⏰ <span data-i18n="nav_cron">کرون‌جاب</span></a>
+      <a data-view="backups">💾 <span data-i18n="nav_bk">بک‌آپ‌ها</span></a>
+      <a data-view="settings">⚙️ <span data-i18n="nav_settings">تنظیمات</span></a>
+    </nav>
+    <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:16px">
+      <button onclick="toggleLang()" id="lang" style="width:100%;margin-bottom:8px">English</button>
+      <button class="danger" onclick="logout()" style="width:100%" data-i18n="logout">خروج</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <h2 id="viewTitle" style="margin:0">داشبورد</h2>
+      <span class="muted" id="whoami"></span>
+    </div>
+    <div id="views"></div>
+  </main>
+</div>
+
+<script>
+// ---------------- i18n ----------------
+const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هوشمند فرش ایرانیان",username:"نام کاربری",
+  password:"رمز عبور",otp:"کد ۲مرحله‌ای (در صورت فعال بودن)",login:"ورود",logout:"خروج",
+  defcred:"پیش‌فرض: admin / admin12345 — پس از ورود حتماً تغییر دهید",
+  nav_dash:"داشبورد",nav_sites:"سایت‌ها",nav_db:"دیتابیس‌ها",nav_ssl:"گواهی SSL",nav_bk:"بک‌آپ‌ها",
+  nav_apps:"برنامه‌ها",nav_email:"ایمیل",nav_sec:"امنیت",engine:"موتور",install:"نصب",
+  history24:"تاریخچهٔ ۲۴ ساعت",scan:"اسکن",scanall:"اسکن همهٔ سایت‌ها",connections:"اتصالات فعال",
+  failedlogins:"ورودهای ناموفق",bannedips:"IPهای مسدود",mailboxes:"صندوق‌ها",aliases:"الیاس‌ها",
+  maildomains:"دامنه‌های ایمیل",addmailbox:"افزودن صندوق",addalias:"افزودن الیاس",quota:"سهمیه (MB)",
+  subdomain:"زیردامنه",addsub:"افزودن زیردامنه",label:"برچسب",parent:"دامنهٔ اصلی",scanssl:"اسکن گواهی‌های سرور",
+  vhosts:"کشف سایت‌های سرور",healthcheck:"بررسی سلامت",destination:"مقصد",source2:"منبع",address:"آدرس",
+  cpu:"پردازنده",ram:"حافظه",net:"پهنای باند",up:"آپ‌تایم",services:"سرویس‌ها",livech:"مصرف زندهٔ منابع",
+  disks:"دیسک‌ها",addsite:"افزودن سایت",domain:"دامنه",type:"نوع",aliases:"دامنه‌های فرعی (با کاما)",
+  create:"ایجاد",preview:"پیش‌نمایش کانفیگ",actions:"عملیات",status:"وضعیت",enable:"فعال",disable:"غیرفعال",
+  del:"حذف",adddb:"ساخت دیتابیس",dbname:"نام دیتابیس",dbuser:"کاربر (اختیاری)",issuessl:"صدور گواهی",
+  method:"روش",dnsprov:"ارائه‌دهنده DNS",renew:"تمدید همه",addbk:"زمان‌بندی بک‌آپ",bkname:"نام",source:"منبع",
+  dest:"مقصد",host:"هاست",port:"پورت",user:"کاربر",pass:"رمز",path:"مسیر",cron:"زمان‌بندی (cron)",
+  retention:"تعداد نگه‌داری",run:"اجرای فوری",enabled:"فعال",none:"موردی نیست",saved:"ذخیره شد",
+  dbcreated:"دیتابیس ساخته شد — رمز را ذخیره کنید:",confirmdel:"حذف شود؟",
+  nav_files:"فایل‌ها",nav_logs:"لاگ‌ها",nav_settings:"تنظیمات",
+  upload:"آپلود",newfolder:"پوشهٔ جدید",newfile:"فایل جدید",download:"دانلود",edit:"ویرایش",rename:"تغییر نام",
+  extract:"اکسترکت",save:"ذخیره",size:"حجم",modified:"تغییر",perms:"دسترسی",back:"بازگشت",
+  restore:"بازیابی",archives:"آرشیوها",chooserestore:"انتخاب آرشیو برای بازیابی",restorewarn:"هشدار: محتوای فعلی بازنویسی می‌شود!",
+  logviewer:"نمایشگر لاگ",nginxlogs:"لاگ‌های Nginx",systemlogs:"لاگ‌های سیستم",servicelogs:"لاگ سرویس",lines:"تعداد خطوط",refresh:"تازه‌سازی",
+  notifications:"اعلان‌ها",telegram:"تلگرام",emailch:"ایمیل (SMTP)",enablech:"فعال",botToken:"توکن ربات",chatId:"شناسهٔ چت (Chat ID)",
+  smtpserver:"سرور SMTP",sendtest:"ارسال پیام آزمایشی",runcheck:"بررسی فوری هشدارها",thresholds:"آستانه‌ها",
+  sslthresh:"هشدار انقضای SSL (روز)",diskthresh:"هشدار پرشدن دیسک (٪)",from:"فرستنده",to:"گیرنده",
+  wizard:"راه‌اندازی اولیه",wizdesc:"چند گام تا آماده‌شدن پنل",wizstack:"نصب وب‌استک (nginx/php/db)",wizpass:"تغییر رمز پیش‌فرض",
+  wizsite:"افزودن اولین سایت",wizbk:"تنظیم بک‌آپ",wiznotif:"فعال‌سازی اعلان‌ها",wizdone:"بستن ویزارد",wizskip:"بعداً",done:"انجام شد",pending2:"در انتظار",
+  nav_ftp:"حساب‌های FTP",nav_cron:"کرون‌جاب",addftp:"افزودن حساب FTP",ftpuser:"نام کاربری",homedir:"پوشهٔ خانه",changepass:"تغییر رمز",
+  ftpserver:"سرور FTP",active:"فعال",locked:"قفل",lock:"قفل کردن",unlock:"بازکردن",removehome:"حذف پوشهٔ خانه هم؟",
+  addcron:"افزودن کرون‌جاب",cronuser:"کاربر",schedule:"زمان‌بندی",command:"دستور",comment:"توضیح",enabledis:"فعال/غیرفعال",
+  cronhint:"نمونه: «0 3 * * *» یعنی هر روز ساعت ۳ بامداد. یا @daily / @hourly",
+  webmail:"وب‌میل (Roundcube)",installwebmail:"نصب وب‌میل",imaphost:"سرور IMAP",smtphost:"سرور SMTP",
+  nav_pyapps:"پایتون/جنگو",deployapp:"استقرار اپ جدید",reponame:"نام اپ",repourl:"آدرس مخزن گیت",branch:"شاخه",apptype:"نوع اپ",
+  entrypoint:"نقطهٔ ورود (entry)",envvars:"متغیرهای محیطی (هر خط KEY=VALUE)",pyver:"نسخهٔ پایتون",deploy:"استقرار",redeploy:"به‌روزرسانی (pull+restart)",
+  start:"شروع",stop:"توقف",restart:"ری‌استارت",applogs:"لاگ اپ",buildlog:"گزارش ساخت",port:"پورت",removefiles:"فایل‌ها هم حذف شوند؟",
+  pyapphint:"مثال جنگو: نوع=django و entry=myproject.wsgi:application — مثال FastAPI: نوع=asgi و entry=main:app",
+  usetemplate:"قالب آماده",selecttemplate:"انتخاب قالب",ghwebhook:"وب‌هوک گیت‌هاب",webhookurl:"آدرس وب‌هوک",secretlbl:"کلید مخفی (Secret)",regen:"تولید مجدد کلید",
+  webhookdesc:"این آدرس و کلید را در GitHub → Settings → Webhooks وارد کنید (Content type: application/json). با هر push روی شاخه، اپ خودکار به‌روزرسانی می‌شود.",
+  fromtemplate:"ساخت از قالب آماده",blankrepo:"بدون مخزن (برای قالب خالی بگذارید)"},
+ en:{title:"ICSD Server Panel",subtitle:"Iranian Carpet Smart Development",username:"Username",
+  password:"Password",otp:"2FA code (if enabled)",login:"Sign in",logout:"Logout",
+  defcred:"Default: admin / admin12345 — change it after login",
+  nav_dash:"Dashboard",nav_sites:"Sites",nav_db:"Databases",nav_ssl:"SSL",nav_bk:"Backups",
+  nav_apps:"Apps",nav_email:"Email",nav_sec:"Security",engine:"Engine",install:"Install",
+  history24:"Last 24h history",scan:"Scan",scanall:"Scan all sites",connections:"Active connections",
+  failedlogins:"Failed logins",bannedips:"Banned IPs",mailboxes:"Mailboxes",aliases:"Aliases",
+  maildomains:"Mail domains",addmailbox:"Add mailbox",addalias:"Add alias",quota:"Quota (MB)",
+  subdomain:"Subdomain",addsub:"Add subdomain",label:"Label",parent:"Parent domain",scanssl:"Scan server certs",
+  vhosts:"Discover server sites",healthcheck:"Health check",destination:"Destination",source2:"Source",address:"Address",
+  cpu:"CPU",ram:"Memory",net:"Bandwidth",up:"Uptime",services:"Services",livech:"Live resource usage",
+  disks:"Disks",addsite:"Add site",domain:"Domain",type:"Type",aliases:"Aliases (comma sep)",
+  create:"Create",preview:"Preview config",actions:"Actions",status:"Status",enable:"Enable",disable:"Disable",
+  del:"Delete",adddb:"Create database",dbname:"Database name",dbuser:"User (optional)",issuessl:"Issue cert",
+  method:"Method",dnsprov:"DNS provider",renew:"Renew all",addbk:"Schedule backup",bkname:"Name",source:"Source",
+  dest:"Destination",host:"Host",port:"Port",user:"User",pass:"Password",path:"Path",cron:"Schedule (cron)",
+  retention:"Keep count",run:"Run now",enabled:"Enabled",none:"Nothing here",saved:"Saved",
+  dbcreated:"Database created — save this password:",confirmdel:"Delete?",
+  nav_files:"Files",nav_logs:"Logs",nav_settings:"Settings",
+  upload:"Upload",newfolder:"New folder",newfile:"New file",download:"Download",edit:"Edit",rename:"Rename",
+  extract:"Extract",save:"Save",size:"Size",modified:"Modified",perms:"Perms",back:"Back",
+  restore:"Restore",archives:"Archives",chooserestore:"Choose an archive to restore",restorewarn:"Warning: current content will be overwritten!",
+  logviewer:"Log viewer",nginxlogs:"Nginx logs",systemlogs:"System logs",servicelogs:"Service log",lines:"Lines",refresh:"Refresh",
+  notifications:"Notifications",telegram:"Telegram",emailch:"Email (SMTP)",enablech:"Enabled",botToken:"Bot token",chatId:"Chat ID",
+  smtpserver:"SMTP server",sendtest:"Send test message",runcheck:"Check alerts now",thresholds:"Thresholds",
+  sslthresh:"SSL expiry alert (days)",diskthresh:"Disk full alert (%)",from:"From",to:"To",
+  wizard:"Getting started",wizdesc:"A few steps to set up the panel",wizstack:"Install web stack (nginx/php/db)",wizpass:"Change default password",
+  wizsite:"Add your first site",wizbk:"Set up a backup",wiznotif:"Enable notifications",wizdone:"Close wizard",wizskip:"Later",done:"Done",pending2:"Pending",
+  nav_ftp:"FTP accounts",nav_cron:"Cron jobs",addftp:"Add FTP account",ftpuser:"Username",homedir:"Home directory",changepass:"Change password",
+  ftpserver:"FTP server",active:"Active",locked:"Locked",lock:"Lock",unlock:"Unlock",removehome:"Also remove home dir?",
+  addcron:"Add cron job",cronuser:"User",schedule:"Schedule",command:"Command",comment:"Comment",enabledis:"Enable/disable",
+  cronhint:"e.g. '0 3 * * *' = every day at 3am. Or @daily / @hourly",
+  webmail:"Webmail (Roundcube)",installwebmail:"Install webmail",imaphost:"IMAP host",smtphost:"SMTP host",
+  nav_pyapps:"Python/Django",deployapp:"Deploy new app",reponame:"App name",repourl:"Git repo URL",branch:"Branch",apptype:"App type",
+  entrypoint:"Entry point",envvars:"Environment vars (KEY=VALUE per line)",pyver:"Python version",deploy:"Deploy",redeploy:"Update (pull+restart)",
+  start:"Start",stop:"Stop",restart:"Restart",applogs:"App logs",buildlog:"Build log",port:"Port",removefiles:"Also remove files?",
+  pyapphint:"Django: type=django, entry=myproject.wsgi:application — FastAPI: type=asgi, entry=main:app",
+  usetemplate:"Template",selecttemplate:"Choose template",ghwebhook:"GitHub webhook",webhookurl:"Webhook URL",secretlbl:"Secret",regen:"Regenerate secret",
+  webhookdesc:"Add this URL and secret in GitHub → Settings → Webhooks (Content type: application/json). Every push to the branch auto-redeploys.",
+  fromtemplate:"Create from template",blankrepo:"No repo (leave blank for template)"}};
+let lang=localStorage.getItem("icsd_lang")||"fa";
+function t(k){return T[lang][k]||k}
+function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=lang==="fa"?"rtl":"ltr";
+  document.querySelectorAll("[data-i18n]").forEach(e=>{const k=e.getAttribute("data-i18n");if(T[lang][k])e.textContent=T[lang][k]});
+  document.getElementById("lang").textContent=lang==="fa"?"English":"فارسی";
+  document.getElementById("li_lang").textContent=lang==="fa"?"EN":"فا";
+  if(token&&currentView)render(currentView)}
+function toggleLang(){lang=lang==="fa"?"en":"fa";localStorage.setItem("icsd_lang",lang);applyLang()}
+
+// ---------------- auth + api ----------------
+let token=localStorage.getItem("icsd_token")||null, currentView="dashboard", chart, ws;
+function toast(msg,kind){const d=document.createElement("div");d.className="toast "+(kind||"");d.textContent=msg;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),4200)}
+async function api(path,opts={}){
+  opts.headers=Object.assign({"Content-Type":"application/json"},opts.headers||{});
+  if(token)opts.headers["Authorization"]="Bearer "+token;
+  const r=await fetch(path,opts);
+  if(r.status===401){logout();throw new Error("unauthorized")}
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(data.detail||("HTTP "+r.status));
+  return data}
+async function doLogin(){
+  try{const r=await api("/api/auth/login",{method:"POST",body:JSON.stringify({
+    username:document.getElementById("li_user").value,password:document.getElementById("li_pass").value,
+    otp:document.getElementById("li_otp").value||null})});
+    token=r.access_token;localStorage.setItem("icsd_token",token);showApp(r.user)}
+  catch(e){toast(e.message,"err")}}
+function logout(){token=null;localStorage.removeItem("icsd_token");if(ws)try{ws.close()}catch(e){}
+  document.getElementById("app").classList.add("hidden");document.getElementById("login").classList.remove("hidden")}
+async function showApp(user){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  if(!user){try{user=await api("/api/auth/me")}catch(e){return}}
+  document.getElementById("whoami").textContent=`${user.username} · ${user.role}`+(user.totp_enabled?" · 🔐":"");
+  setView("dashboard");
+  try{const st=await api("/api/setup/status");if(st.steps&&!st.steps.wizard_done)openWizard()}catch(e){}}
+
+// ---------------- views ----------------
+function setView(v){currentView=v;
+  document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.view===v));
+  document.getElementById("viewTitle").textContent=t("nav_"+({dashboard:"dash",sites:"sites",files:"files",ftp:"ftp",databases:"db",apps:"apps",pyapps:"pyapps",ssl:"ssl",email:"email",security:"sec",logs:"logs",cron:"cron",backups:"bk",settings:"settings"}[v]));
+  if(ws&&v!=="dashboard"){try{ws.close()}catch(e){}ws=null}
+  render(v)}
+document.getElementById("nav").addEventListener("click",e=>{const a=e.target.closest("a");if(a)setView(a.dataset.view)});
+
+function render(v){({dashboard:viewDashboard,sites:viewSites,files:viewFiles,ftp:viewFtp,databases:viewDatabases,apps:viewApps,pyapps:viewPyapps,ssl:viewSSL,email:viewEmail,security:viewSecurity,logs:viewLogs,cron:viewCron,backups:viewBackups,settings:viewSettings}[v])()}
+const $=id=>document.getElementById(id);
+function fmtB(b){if(b==null)return"—";const u=["B","KB","MB","GB","TB"];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++}return b.toFixed(1)+" "+u[i]}
+function fmtUp(s){const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+"d ":"")+h+"h "+m+"m"}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+// ---- Dashboard ----
+function viewDashboard(){
+  $("views").innerHTML=`<div class="grid">
+    <div class="card"><h3>${t("cpu")}</h3><div class="stat"><span id="cpu">—</span><small>%</small></div><div class="bar" id="cpuBar"><span></span></div></div>
+    <div class="card"><h3>${t("ram")}</h3><div class="stat"><span id="mem">—</span><small>%</small></div><div class="bar" id="memBar"><span></span></div><div class="muted" style="font-size:12px;margin-top:8px"><span id="memU">—</span>/<span id="memT">—</span></div></div>
+    <div class="card"><h3>${t("net")}</h3><div style="margin-top:8px"><span class="pill up">▲ <span id="up">—</span></span> <span class="pill down">▼ <span id="dn">—</span></span></div><div class="muted" style="font-size:12px;margin-top:12px">${t("up")}: <span id="uptime">—</span></div></div>
+    <div class="card"><h3>${t("services")}</h3><div id="svcs" class="muted" style="font-size:13px">—</div></div>
+    <div class="card" style="grid-column:1/-1"><h3>${t("livech")}</h3><canvas id="ch" height="80"></canvas></div>
+    <div class="card" style="grid-column:1/-1"><div style="display:flex;justify-content:space-between;align-items:center"><h3>${t("history24")}</h3><button onclick="loadHistory()">↻</button></div><canvas id="histCh" height="80"></canvas></div>
+    <div class="card" style="grid-column:1/-1"><h3>${t("disks")}</h3><div id="disks"></div></div></div>`;
+  const ctx=$("ch").getContext("2d");const MAX=30;
+  chart=new Chart(ctx,{type:"line",data:{labels:Array(MAX).fill(""),datasets:[
+    {label:t("cpu"),data:Array(MAX).fill(null),borderColor:"#2dd4a7",backgroundColor:"rgba(45,212,167,.12)",fill:true,tension:.35,pointRadius:0,borderWidth:2},
+    {label:t("ram"),data:Array(MAX).fill(null),borderColor:"#5b9dff",backgroundColor:"rgba(91,157,255,.10)",fill:true,tension:.35,pointRadius:0,borderWidth:2}]},
+    options:{animation:false,responsive:true,scales:{y:{min:0,max:100,grid:{color:"#2c3743"},ticks:{color:"#8b97a7"}},x:{grid:{display:false},ticks:{display:false}}},plugins:{legend:{labels:{color:"#e6edf3"}}}}});
+  connectWS();loadServices();loadHistory()}
+let histChart;
+async function loadHistory(){try{const r=await api("/api/monitoring/history?hours=24");
+  const labels=r.series.map(p=>new Date(p.ts*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
+  const cpu=r.series.map(p=>p.cpu_percent), mem=r.series.map(p=>p.mem_percent);
+  const ctx=$("histCh").getContext("2d");
+  if(histChart)histChart.destroy();
+  histChart=new Chart(ctx,{type:"line",data:{labels,datasets:[
+    {label:t("cpu"),data:cpu,borderColor:"#2dd4a7",backgroundColor:"rgba(45,212,167,.10)",fill:true,tension:.3,pointRadius:0,borderWidth:2},
+    {label:t("ram"),data:mem,borderColor:"#5b9dff",backgroundColor:"rgba(91,157,255,.08)",fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
+    options:{animation:false,responsive:true,scales:{y:{min:0,max:100,grid:{color:"#2c3743"},ticks:{color:"#8b97a7"}},x:{grid:{display:false},ticks:{color:"#8b97a7",maxTicksLimit:8}}},plugins:{legend:{labels:{color:"#e6edf3"}}}}});
+}catch(e){}}
+function paint(d){$("cpu").textContent=d.cpu.percent.toFixed(0);setBar("cpuBar",d.cpu.percent);
+  $("mem").textContent=d.memory.percent.toFixed(0);setBar("memBar",d.memory.percent);
+  $("memU").textContent=fmtB(d.memory.used);$("memT").textContent=fmtB(d.memory.total);
+  $("up").textContent=fmtB(d.network.up_bytes_per_sec)+"/s";$("dn").textContent=fmtB(d.network.down_bytes_per_sec)+"/s";
+  $("uptime").textContent=fmtUp(d.uptime_seconds);
+  $("disks").innerHTML=d.disk.map(p=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span>${esc(p.mountpoint)} <span class="muted">(${esc(p.fstype)})</span></span><span>${fmtB(p.used)}/${fmtB(p.total)} — ${p.percent}%</span></div>`).join("")||"—";
+  if(chart){chart.data.datasets[0].data.push(d.cpu.percent);chart.data.datasets[1].data.push(d.memory.percent);
+    chart.data.datasets[0].data.shift();chart.data.datasets[1].data.shift();chart.update()}}
+function setBar(id,p){const b=$(id);if(!b)return;b.className="bar"+(p>=90?" danger":p>=70?" warn":"");b.firstElementChild.style.width=p+"%"}
+function connectWS(){const proto=location.protocol==="https:"?"wss":"ws";
+  try{ws=new WebSocket(`${proto}://${location.host}/api/monitoring/ws`)}catch(e){return pollFallback()}
+  ws.onmessage=e=>{if(currentView==="dashboard")paint(JSON.parse(e.data))};
+  ws.onclose=()=>{if(currentView==="dashboard")setTimeout(connectWS,3000)};ws.onerror=()=>{try{ws.close()}catch(e){}}}
+function pollFallback(){setInterval(async()=>{if(currentView==="dashboard"){try{paint(await api("/api/monitoring/snapshot"))}catch(e){}}},2500)}
+async function loadServices(){try{const j=await api("/api/system/services");
+  $("svcs").innerHTML=(j.services.length?j.services.map(s=>`<div style="display:flex;justify-content:space-between;padding:6px 0"><span>${esc(s.name)}</span><span class="pill ${s.active?"up":"down"}">${s.active?"● active":"● stopped"}</span></div>`).join(""):t("none"))}catch(e){}}
+
+// ---- Sites ----
+async function viewSites(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="siteForm()">+ ${t("addsite")}</button>
+    <span style="margin-inline-start:8px"></span><button onclick="subForm()">+ ${t("addsub")}</button>
+    <span style="margin-inline-start:8px"></span><button onclick="healthAll()">${t("healthcheck")}</button>
+    <div id="healthBox" style="margin-top:10px"></div></div><div class="card"><div id="siteList">…</div></div>`;
+  try{const j=await api("/api/sites");const s=j.sites;
+    $("siteList").innerHTML=s.length?`<table><thead><tr><th>${t("domain")}</th><th>${t("type")}</th><th>SSL</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      s.map(x=>`<tr><td>${esc(x.domain)}</td><td>${esc(x.site_type)}</td><td>${x.ssl_enabled?"🔒":"—"}</td>
+        <td><span class="pill ${x.enabled?"up":"down"}">${x.enabled?t("enable"):t("disable")}</span></td>
+        <td><button onclick="toggleSite('${esc(x.domain)}',${x.enabled?0:1})">${x.enabled?t("disable"):t("enable")}</button>
+        <button class="danger" onclick="delSite('${esc(x.domain)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function siteForm(){modal(`<h3>${t("addsite")}</h3>
+  <label>${t("domain")}</label><input id="s_domain" placeholder="example.ir">
+  <label>${t("type")}</label><select id="s_type" onchange="document.getElementById('s_php').classList.toggle('hidden',this.value!=='php');document.getElementById('s_proxy').classList.toggle('hidden',this.value!=='proxy')">
+    <option value="static">static</option><option value="php">php</option><option value="proxy">proxy</option></select>
+  <div id="s_php" class="hidden"><label>PHP version</label><input id="s_phpv" value="8.2"></div>
+  <div id="s_proxy" class="hidden"><label>proxy_pass</label><input id="s_pp" value="http://127.0.0.1:3000"></div>
+  <label>${t("aliases")}</label><input id="s_alias" placeholder="www.example.ir">
+  <div style="margin-top:16px;display:flex;gap:8px"><button class="primary" onclick="createSite()">${t("create")}</button>
+  <button onclick="previewSite()">${t("preview")}</button></div><pre id="s_prev" class="hidden"></pre>`)}
+function siteBody(){return{domain:$("s_domain").value,site_type:$("s_type").value,aliases:$("s_alias").value,
+  php_version:$("s_type").value==="php"?$("s_phpv").value:null,proxy_pass:$("s_type").value==="proxy"?$("s_pp").value:null}}
+async function previewSite(){try{const r=await api("/api/sites/preview",{method:"POST",body:JSON.stringify(siteBody())});
+  $("s_prev").classList.remove("hidden");$("s_prev").textContent=r.config}catch(e){toast(e.message,"err")}}
+async function createSite(){try{await api("/api/sites",{method:"POST",body:JSON.stringify(siteBody())});
+  closeModal();toast(t("saved"),"ok");viewSites()}catch(e){toast(e.message,"err")}}
+function subForm(){modal(`<h3>${t("addsub")}</h3><label>${t("parent")}</label><input id="sd_parent" placeholder="example.ir">
+  <label>${t("label")}</label><input id="sd_label" placeholder="blog">
+  <label>${t("type")}</label><select id="sd_type"><option value="static">static</option><option value="php">php</option><option value="proxy">proxy</option></select>
+  <div style="margin-top:14px"><button class="primary" onclick="createSub()">${t("create")}</button></div>`)}
+async function createSub(){try{await api("/api/sites/subdomain",{method:"POST",body:JSON.stringify({parent_domain:$("sd_parent").value,label:$("sd_label").value,site_type:$("sd_type").value})});closeModal();toast(t("saved"),"ok");viewSites()}catch(e){toast(e.message,"err")}}
+async function healthAll(){$("healthBox").innerHTML="…";try{const r=await api("/api/discovery/health");
+  $("healthBox").innerHTML=r.results.length?r.results.map(h=>`<span class="pill ${h.ok?"up":"down"}" style="margin:3px">${esc(h.target)}: ${h.status_code||"down"}${h.response_ms?` (${h.response_ms}ms)`:""}</span>`).join(""):`<span class="muted">${t("none")}</span>`}catch(e){toast(e.message,"err")}}
+async function toggleSite(d,en){try{await api(`/api/sites/${d}/${en?"enable":"disable"}`,{method:"POST"});viewSites()}catch(e){toast(e.message,"err")}}
+async function delSite(d){if(!confirm(t("confirmdel")+" "+d))return;try{await api(`/api/sites/${d}`,{method:"DELETE"});viewSites()}catch(e){toast(e.message,"err")}}
+
+// ---- Databases ----
+async function viewDatabases(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="dbForm()">+ ${t("adddb")}</button></div><div class="card"><div id="dbList">…</div></div>`;
+  try{const j=await api("/api/databases");const m=j.managed;
+    $("dbList").innerHTML=m.length?`<table><thead><tr><th>${t("dbname")}</th><th>${t("user")}</th><th>${t("engine")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      m.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.db_user)}</td><td><span class="pill up">${esc(x.engine)}</span></td>
+        <td><button onclick="resetDb('${esc(x.name)}','${esc(x.engine)}')">🔑</button><button class="danger" onclick="delDb('${esc(x.name)}','${esc(x.engine)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function dbForm(){modal(`<h3>${t("adddb")}</h3>
+  <label>${t("engine")}</label><select id="d_engine"><option value="mysql">MySQL / MariaDB</option><option value="postgres">PostgreSQL</option></select>
+  <label>${t("dbname")}</label><input id="d_name" placeholder="myapp">
+  <label>${t("dbuser")}</label><input id="d_user" placeholder="(auto)">
+  <div style="margin-top:16px"><button class="primary" onclick="createDb()">${t("create")}</button></div>`)}
+async function createDb(){try{const r=await api("/api/databases",{method:"POST",body:JSON.stringify({name:$("d_name").value,user:$("d_user").value||null,engine:$("d_engine").value})});
+  closeModal();alert(`${t("dbcreated")}\n\nengine: ${r.engine}\nuser: ${r.user}\npassword: ${r.password}`);viewDatabases()}catch(e){toast(e.message,"err")}}
+async function resetDb(n,eng){try{const r=await api(`/api/databases/${n}/reset-password?engine=${eng}`,{method:"POST"});alert(`new password for ${r.user}:\n${r.password}`)}catch(e){toast(e.message,"err")}}
+async function delDb(n,eng){if(!confirm(t("confirmdel")+" "+n))return;try{await api(`/api/databases/${n}?engine=${eng}`,{method:"DELETE"});viewDatabases()}catch(e){toast(e.message,"err")}}
+
+// ---- SSL ----
+async function viewSSL(){
+  let st={};try{st=await api("/api/ssl/status")}catch(e){}
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px">
+    <p>acme.sh: <span class="pill ${st.acme_installed?"up":"down"}">${st.acme_installed?"installed":"not installed"}</span>
+    <span class="muted" style="font-size:12px"> · CA fallback: ${(st.ca_fallback||[]).join(" → ")}</span></p>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="primary" onclick="sslForm()">+ ${t("issuessl")}</button>
+    <button onclick="renewAll()">${t("renew")}</button><button onclick="scanCerts()">${t("scanssl")}</button>
+    <button onclick="discoverVhosts()">${t("vhosts")}</button></div></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("scanssl")}</h3><div id="certScan" class="muted">—</div></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("vhosts")}</h3><div id="vhostList" class="muted">—</div></div>
+    <div class="card"><h3>acme.sh</h3><pre id="sslList">…</pre></div>`;
+  try{const j=await api("/api/ssl");$("sslList").textContent=j.installed?(j.raw||"—"):"acme.sh not installed"}catch(e){$("sslList").textContent=e.message}}
+async function scanCerts(){$("certScan").innerHTML="…";try{const r=await api("/api/discovery/certificates");
+  $("certScan").innerHTML=`<p>total ${r.summary.total} · valid ${r.summary.valid} · warning ${r.summary.warning} · critical ${r.summary.critical} · expired ${r.summary.expired}</p>`+
+    `<table><thead><tr><th>CN</th><th>days</th><th>${t("status")}</th><th>issuer</th></tr></thead><tbody>`+
+    r.certificates.slice(0,60).map(c=>`<tr><td>${esc(c.common_name||c.path)}</td><td>${c.days_left}</td><td><span class="pill ${c.status==="valid"?"up":"down"}">${c.status}</span></td><td class="muted" style="font-size:11px">${esc((c.issuer||"").slice(0,40))}</td></tr>`).join("")+`</tbody></table>`}catch(e){toast(e.message,"err")}}
+async function discoverVhosts(){$("vhostList").innerHTML="…";try{const r=await api("/api/discovery/vhosts");
+  $("vhostList").innerHTML=`<p>total ${r.total} · untracked ${r.untracked_count}</p>`+r.vhosts.map(v=>`<div class="row"><span>${v.domains.map(esc).join(", ")||"—"} ${v.ssl?"🔒":""}</span><span class="pill ${v.in_panel_db?"up":"down"}">${v.in_panel_db?"managed":"untracked"}</span></div>`).join("")}catch(e){toast(e.message,"err")}}
+function sslForm(){modal(`<h3>${t("issuessl")}</h3><label>${t("domain")}</label><input id="x_domain" placeholder="example.ir">
+  <label>${t("method")}</label><select id="x_method"><option value="dns">DNS-01 (Iran-safe)</option><option value="http">HTTP-01</option></select>
+  <label>${t("dnsprov")} <span class="muted">(dns_cf, dns_ar, …)</span></label><input id="x_dns" placeholder="dns_cf">
+  <div style="margin-top:16px"><button class="primary" onclick="issueSSL()">${t("issuessl")}</button></div>`)}
+async function issueSSL(){try{const r=await api("/api/ssl/issue",{method:"POST",body:JSON.stringify({
+  domain:$("x_domain").value,method:$("x_method").value,dns_provider:$("x_dns").value||null})});
+  closeModal();toast("OK: "+(r.ca||""),"ok");viewSSL()}catch(e){toast(e.message,"err")}}
+async function renewAll(){try{await api("/api/ssl/renew",{method:"POST"});toast(t("saved"),"ok")}catch(e){toast(e.message,"err")}}
+
+// ---- Backups ----
+async function viewBackups(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="bkForm()">+ ${t("addbk")}</button></div><div class="card"><div id="bkList">…</div></div>`;
+  try{const j=await api("/api/backups");const b=j.jobs;
+    $("bkList").innerHTML=b.length?`<table><thead><tr><th>${t("bkname")}</th><th>${t("source")}</th><th>${t("dest")}</th><th>cron</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      b.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.source_type)}:${esc(x.source_ref)}</td><td>${esc(x.dest_type)}</td>
+        <td><code>${esc(x.schedule_cron)}</code></td><td class="muted" style="font-size:12px">${esc(x.last_status||"—")}</td>
+        <td><button onclick="runBk(${x.id})">${t("run")}</button><button onclick="restoreBk(${x.id})">${t("restore")}</button><button class="danger" onclick="delBk(${x.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function bkForm(){modal(`<h3>${t("addbk")}</h3>
+  <div class="row2"><div><label>${t("bkname")}</label><input id="b_name"></div>
+  <div><label>${t("type")}</label><select id="b_stype"><option value="site">site</option><option value="database">database</option><option value="path">path</option></select></div></div>
+  <label>${t("source")} (domain / db / path)</label><input id="b_sref">
+  <label>${t("dest")}</label><select id="b_dtype"><option value="ftp">FTP</option><option value="sftp">SFTP</option><option value="local">local</option></select>
+  <div class="row2"><div><label>${t("host")}</label><input id="b_host"></div><div><label>${t("port")}</label><input id="b_port" placeholder="21"></div></div>
+  <div class="row2"><div><label>${t("user")}</label><input id="b_user"></div><div><label>${t("pass")}</label><input id="b_pass" type="password"></div></div>
+  <label>${t("path")}</label><input id="b_path" value="/backups">
+  <div class="row2"><div><label>${t("cron")}</label><input id="b_cron" value="0 3 * * *"></div><div><label>${t("retention")}</label><input id="b_ret" value="7"></div></div>
+  <div style="margin-top:16px"><button class="primary" onclick="createBk()">${t("create")}</button></div>`)}
+async function createBk(){try{await api("/api/backups",{method:"POST",body:JSON.stringify({
+  name:$("b_name").value,source_type:$("b_stype").value,source_ref:$("b_sref").value,dest_type:$("b_dtype").value,
+  dest_host:$("b_host").value||null,dest_port:parseInt($("b_port").value)||null,dest_user:$("b_user").value||null,
+  dest_password:$("b_pass").value||null,dest_path:$("b_path").value,schedule_cron:$("b_cron").value,retention:parseInt($("b_ret").value)||7})});
+  closeModal();toast(t("saved"),"ok");viewBackups()}catch(e){toast(e.message,"err")}}
+async function runBk(id){try{const r=await api(`/api/backups/${id}/run`,{method:"POST"});toast("OK "+(r.archive||""),"ok");viewBackups()}catch(e){toast(e.message,"err")}}
+async function delBk(id){if(!confirm(t("confirmdel")))return;try{await api(`/api/backups/${id}`,{method:"DELETE"});viewBackups()}catch(e){toast(e.message,"err")}}
+
+// ---- Apps ----
+async function viewApps(){
+  $("views").innerHTML=`<div class="card"><div id="appList">…</div></div>`;
+  try{const j=await api("/api/apps/catalog");
+    $("appList").innerHTML=`<table><thead><tr><th>App</th><th></th><th>${t("actions")}</th></tr></thead><tbody>`+
+      j.apps.map(a=>`<tr><td><b>${esc(a.name)}</b></td><td class="muted">${esc(a.desc)}</td>
+        <td>${a.id==="pgadmin"?`<button onclick="pgInfo()">i</button>`:`<button class="primary" onclick="appForm('${a.id}','${esc(a.name)}')">${t("install")}</button>`}</td></tr>`).join("")+`</tbody></table>`}
+  catch(e){toast(e.message,"err")}}
+function appForm(id,name){modal(`<h3>${t("install")} ${esc(name)}</h3><label>${t("domain")}</label><input id="a_domain" placeholder="app.example.ir">
+  <label>PHP version</label><input id="a_php" value="8.2">
+  <p class="muted" style="font-size:12px">دانلود و نصب روی سرور انجام می‌شود (نیازمند دسترسی شبکه/میرور).</p>
+  <div style="margin-top:14px"><button class="primary" onclick="installApp('${id}')">${t("install")}</button></div>`)}
+async function installApp(id){try{const r=await api(`/api/apps/${id}`,{method:"POST",body:JSON.stringify({domain:$("a_domain").value,php_version:$("a_php").value})});
+  closeModal();alert("OK: "+JSON.stringify(r,null,1));viewApps()}catch(e){toast(e.message,"err")}}
+async function pgInfo(){try{const r=await api("/api/apps/pgadmin");alert(r.note)}catch(e){toast(e.message,"err")}}
+
+// ---- Email ----
+async function viewEmail(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="primary" onclick="mailDomForm()">+ ${t("maildomains")}</button>
+    <button onclick="mailboxForm()">+ ${t("addmailbox")}</button><button onclick="aliasForm()">+ ${t("addalias")}</button>
+    <button onclick="webmailForm()">📧 ${t("installwebmail")}</button></div></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("maildomains")}</h3><div id="mailDoms">…</div></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("mailboxes")}</h3><div id="mailBoxes">…</div></div>
+    <div class="card"><h3>${t("aliases")}</h3><div id="mailAliases">…</div></div>`;
+  try{const d=await api("/api/email/domains");$("mailDoms").innerHTML=d.domains.length?d.domains.map(x=>`<span class="pill up" style="margin:3px">${esc(x.domain)} <a onclick="delMailDom('${esc(x.domain)}')" style="cursor:pointer">✕</a></span>`).join(""):`<span class="muted">${t("none")}</span>`;
+    const m=await api("/api/email/mailboxes");$("mailBoxes").innerHTML=m.mailboxes.length?`<table><tbody>`+m.mailboxes.map(x=>`<tr><td>${esc(x.address)}</td><td class="muted">${x.quota_mb}MB</td><td><button class="danger" onclick="delMailbox('${esc(x.address)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<span class="muted">${t("none")}</span>`;
+    const a=await api("/api/email/aliases");$("mailAliases").innerHTML=a.aliases.length?`<table><tbody>`+a.aliases.map(x=>`<tr><td>${esc(x.source)} → ${esc(x.destination)}</td><td><button class="danger" onclick="delAlias(${x.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<span class="muted">${t("none")}</span>`}
+  catch(e){toast(e.message,"err")}}
+function mailDomForm(){modal(`<h3>${t("maildomains")}</h3><label>${t("domain")}</label><input id="md"><div style="margin-top:14px"><button class="primary" onclick="addMailDom()">${t("create")}</button></div>`)}
+async function addMailDom(){try{await api("/api/email/domains",{method:"POST",body:JSON.stringify({domain:$("md").value})});closeModal();viewEmail()}catch(e){toast(e.message,"err")}}
+async function delMailDom(d){if(!confirm(t("confirmdel")+" "+d))return;try{await api(`/api/email/domains/${d}`,{method:"DELETE"});viewEmail()}catch(e){toast(e.message,"err")}}
+function mailboxForm(){modal(`<h3>${t("addmailbox")}</h3><label>${t("address")}</label><input id="mb_a" placeholder="info@example.ir">
+  <label>${t("password")}</label><input id="mb_p" type="password"><label>${t("quota")}</label><input id="mb_q" value="1024">
+  <div style="margin-top:14px"><button class="primary" onclick="addMailbox()">${t("create")}</button></div>`)}
+async function addMailbox(){try{await api("/api/email/mailboxes",{method:"POST",body:JSON.stringify({address:$("mb_a").value,password:$("mb_p").value,quota_mb:parseInt($("mb_q").value)||1024})});closeModal();viewEmail()}catch(e){toast(e.message,"err")}}
+async function delMailbox(a){if(!confirm(t("confirmdel")+" "+a))return;try{await api(`/api/email/mailboxes/${a}`,{method:"DELETE"});viewEmail()}catch(e){toast(e.message,"err")}}
+function aliasForm(){modal(`<h3>${t("addalias")}</h3><label>${t("source2")}</label><input id="al_s" placeholder="sales@example.ir">
+  <label>${t("destination")}</label><input id="al_d" placeholder="info@example.ir"><div style="margin-top:14px"><button class="primary" onclick="addAlias()">${t("create")}</button></div>`)}
+async function addAlias(){try{await api("/api/email/aliases",{method:"POST",body:JSON.stringify({source:$("al_s").value,destination:$("al_d").value})});closeModal();viewEmail()}catch(e){toast(e.message,"err")}}
+async function delAlias(id){try{await api(`/api/email/aliases/${id}`,{method:"DELETE"});viewEmail()}catch(e){toast(e.message,"err")}}
+
+// ---- Security ----
+async function viewSecurity(){
+  $("views").innerHTML=`<div class="grid">
+    <div class="card"><h3>${t("connections")}</h3><div id="secConn" class="muted">…</div></div>
+    <div class="card"><h3>${t("failedlogins")}</h3><div id="secFail" class="muted">…</div></div>
+    <div class="card"><h3>fail2ban / ${t("bannedips")}</h3><div id="secF2b" class="muted">…</div></div>
+    <div class="card" style="grid-column:1/-1"><h3>${t("scan")} (backdoor/malware)</h3>
+      <button class="primary" onclick="scanSites()">${t("scanall")}</button>
+      <span style="margin-inline-start:8px"></span><button onclick="scanPathForm()">${t("scan")} path…</button>
+      <div id="secScan" style="margin-top:12px"></div></div></div>`;
+  try{const c=await api("/api/security/connections");$("secConn").innerHTML=c.top_ips&&c.top_ips.length?`<p>established: ${c.established_total} · unique: ${c.unique_ips}</p>`+c.top_ips.map(x=>`<div style="display:flex;justify-content:space-between"><span>${esc(x.ip)}</span><span>${x.connections}</span></div>`).join(""):(c.error||t("none"));}catch(e){}
+  try{const f=await api("/api/security/failed-logins");$("secFail").innerHTML=f.available?`<p>total: ${f.total_failed}</p>`+(f.top_ips||[]).map(x=>`<div style="display:flex;justify-content:space-between"><span>${esc(x.ip)}</span><span class="pill down">${x.attempts}</span></div>`).join(""):(f.hint||t("none"));}catch(e){}
+  try{const b=await api("/api/security/fail2ban");$("secF2b").innerHTML=b.installed?(b.jails.map(j=>`<div>${esc(j.name)}: <b>${j.currently_banned.length}</b> banned (total ${j.total_banned})</div>`).join("")||t("none")):(b.hint||"not installed");}catch(e){}}
+async function scanSites(){$("secScan").innerHTML="…";try{const r=await api("/api/security/scan-sites");
+  $("secScan").innerHTML=r.sites.length?`<table><thead><tr><th>${t("domain")}</th><th>scanned</th><th>findings</th><th>high</th></tr></thead><tbody>`+r.sites.map(s=>`<tr><td>${esc(s.domain)}</td><td>${s.files_scanned}</td><td>${s.findings}</td><td>${s.high?`<span class="pill down">${s.high}</span>`:0}</td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}catch(e){toast(e.message,"err")}}
+function scanPathForm(){modal(`<h3>${t("scan")}</h3><label>${t("path")}</label><input id="sc_p" placeholder="/var/www/example.ir"><div style="margin-top:14px"><button class="primary" onclick="scanPath()">${t("scan")}</button></div>`)}
+async function scanPath(){try{const r=await api("/api/security/scan",{method:"POST",body:JSON.stringify({path:$("sc_p").value})});
+  closeModal();$("secScan").innerHTML=`<p>${JSON.stringify(r.summary)}</p>`+r.findings.slice(0,40).map(f=>`<div class="row"><span class="pill ${f.severity==="high"?"down":"up"}">${f.severity}</span> ${esc(f.pattern)} — <span class="muted">${esc(f.file)}:${f.line}</span></div>`).join("")}catch(e){toast(e.message,"err")}}
+
+// path-safe escape for inline JS string args (handles \ and ' then HTML-escapes)
+function pesc(s){return esc(String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"))}
+
+// ---- File manager ----
+let fmPath=null;
+async function viewFiles(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:12px"><div id="fmRoots" class="muted">…</div></div>
+    <div class="card"><div id="fmBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px"></div>
+    <div id="fmList">…</div><input type="file" id="fmFile" style="display:none" onchange="fmUpload(this)"></div>`;
+  try{const r=await api("/api/files/roots");
+    $("fmRoots").innerHTML=r.roots.length?r.roots.map(x=>`<button onclick="fmOpen('${pesc(x.path)}')">📁 ${esc(x.name||x.path)}</button>`).join(" "):t("none");
+    if((!fmPath)&&r.roots.length)fmPath=r.roots[0].path;
+    if(fmPath)fmOpen(fmPath);else $("fmList").innerHTML=`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+async function fmOpen(p){fmPath=p;try{const r=await api("/api/files/list?path="+encodeURIComponent(p));
+  $("fmBar").innerHTML=`<code style="flex:1;min-width:160px">${esc(r.path)}</code>`+
+    (r.parent?`<button onclick="fmOpen('${pesc(r.parent)}')">⬆ ${t("back")}</button>`:"")+
+    `<button onclick="$('fmFile').click()">⬆ ${t("upload")}</button>`+
+    `<button onclick="fmNew('mkdir')">+ ${t("newfolder")}</button><button onclick="fmNew('new')">+ ${t("newfile")}</button>`;
+  $("fmList").innerHTML=`<table><thead><tr><th>نام / Name</th><th>${t("size")}</th><th>${t("modified")}</th><th>${t("perms")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+    (r.entries.length?r.entries.map(fmRow).join(""):`<tr><td colspan="5" class="muted">${t("none")}</td></tr>`)+`</tbody></table>`}
+  catch(e){toast(e.message,"err")}}
+function fmRow(x){const icon=x.is_dir?"📁":"📄";
+  const name=x.is_dir?`<a style="cursor:pointer" onclick="fmOpen('${pesc(x.path)}')">${icon} ${esc(x.name)}</a>`:`${icon} ${esc(x.name)}`;
+  let act="";
+  if(!x.is_dir){act+=`<button onclick="fmDownload('${pesc(x.path)}')">${t("download")}</button>`;
+    if(x.editable)act+=`<button onclick="fmEdit('${pesc(x.path)}')">${t("edit")}</button>`;
+    if(/\.(zip|tar|gz|tgz)$/i.test(x.name))act+=`<button onclick="fmExtract('${pesc(x.path)}')">${t("extract")}</button>`}
+  act+=`<button onclick="fmRename('${pesc(x.path)}','${pesc(x.name)}')">${t("rename")}</button>`;
+  act+=`<button class="danger" onclick="fmDelete('${pesc(x.path)}')">${t("del")}</button>`;
+  return `<tr><td>${name}</td><td class="muted">${x.is_dir?"—":fmtB(x.size)}</td><td class="muted" style="font-size:12px">${esc(x.modified||"")}</td><td class="muted" style="font-size:12px">${esc(x.mode||"")}</td><td>${act}</td></tr>`}
+async function fmUpload(inp){const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append("dir_path",fmPath);fd.append("file",f);
+  try{const r=await fetch("/api/files/upload",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||"HTTP "+r.status);toast(t("saved"),"ok");inp.value="";fmOpen(fmPath)}
+  catch(e){toast(e.message,"err")}}
+async function fmNew(kind){const n=prompt(kind==="mkdir"?t("newfolder"):t("newfile"));if(!n)return;
+  try{await api("/api/files/"+kind,{method:"POST",body:JSON.stringify({path:fmPath.replace(/\/+$/,"")+"/"+n})});fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmRename(p,old){const n=prompt(t("rename"),old);if(!n||n===old)return;
+  try{await api("/api/files/rename",{method:"POST",body:JSON.stringify({path:p,new_name:n})});fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmDelete(p){if(!confirm(t("confirmdel")+"\n"+p))return;
+  try{await api("/api/files/delete",{method:"POST",body:JSON.stringify({path:p})});fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmExtract(p){if(!confirm(t("extract")+"؟"))return;
+  try{const r=await api("/api/files/extract",{method:"POST",body:JSON.stringify({path:p})});toast(t("done")+" ("+r.extracted+")","ok");fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmDownload(p){try{const r=await fetch("/api/files/download?path="+encodeURIComponent(p),{headers:{Authorization:"Bearer "+token}});
+  if(!r.ok)throw new Error("HTTP "+r.status);const b=await r.blob();const u=URL.createObjectURL(b);
+  const a=document.createElement("a");a.href=u;a.download=p.split("/").pop();a.click();URL.revokeObjectURL(u)}catch(e){toast(e.message,"err")}}
+async function fmEdit(p){try{const r=await api("/api/files/read?path="+encodeURIComponent(p));
+  modal(`<h3>${t("edit")}: ${esc(p.split("/").pop())}</h3><textarea id="fmEd" style="width:100%;height:48vh;font-family:monospace;font-size:13px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px"></textarea><div style="margin-top:12px"><button class="primary" onclick="fmSave('${pesc(p)}')">${t("save")}</button></div>`);
+  $("fmEd").value=r.content}catch(e){toast(e.message,"err")}}
+async function fmSave(p){try{await api("/api/files/write",{method:"POST",body:JSON.stringify({path:p,content:$("fmEd").value})});closeModal();toast(t("saved"),"ok")}catch(e){toast(e.message,"err")}}
+
+// ---- Log viewer ----
+let logCur=null;
+async function viewLogs(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:12px"><div id="logPick" class="muted">…</div></div>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 id="logTitle">${t("logviewer")}</h3>
+    <div><input id="logLines" value="200" style="width:80px;display:inline-block"> <button onclick="logReload()">↻ ${t("refresh")}</button></div></div><pre id="logOut">—</pre></div>`;
+  try{const r=await api("/api/logs");
+    let h=`<b>${t("nginxlogs")}:</b> `+(r.nginx.map(x=>`<button onclick="logTail('${pesc(x.path)}')">${esc(x.name)}</button>`).join(" ")||t("none"));
+    h+=`<br><b style="display:inline-block;margin-top:8px">${t("systemlogs")}:</b> `+(r.system.map(x=>`<button onclick="logTail('${pesc(x.path)}')">${esc(x.name)}</button>`).join(" ")||t("none"));
+    h+=`<br><b style="display:inline-block;margin-top:8px">${t("servicelogs")}:</b> `+r.services.map(s=>`<button onclick="logJournal('${pesc(s)}')">${esc(s)}</button>`).join(" ");
+    $("logPick").innerHTML=h}catch(e){toast(e.message,"err")}}
+async function logTail(p){logCur={type:"file",path:p};const n=$("logLines").value||200;
+  try{const r=await api("/api/logs/tail?path="+encodeURIComponent(p)+"&lines="+n);$("logTitle").textContent=p;$("logOut").textContent=r.content||"—"}catch(e){toast(e.message,"err")}}
+async function logJournal(s){logCur={type:"svc",svc:s};const n=$("logLines").value||200;
+  try{const r=await api("/api/logs/journal?service="+encodeURIComponent(s)+"&lines="+n);$("logTitle").textContent=s;$("logOut").textContent=r.available?(r.content||"—"):(r.hint||"—")}catch(e){toast(e.message,"err")}}
+function logReload(){if(!logCur)return;logCur.type==="file"?logTail(logCur.path):logJournal(logCur.svc)}
+
+// ---- Settings / Notifications ----
+async function viewSettings(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><h3>${t("notifications")} — ${t("telegram")}</h3>
+    <label><input type="checkbox" id="n_tg_en"> ${t("enablech")}</label>
+    <label>${t("botToken")}</label><input id="n_tg_token" placeholder="••• (خالی = حفظ مقدار قبلی)">
+    <label>${t("chatId")}</label><input id="n_tg_chat"></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("notifications")} — ${t("emailch")}</h3>
+    <label><input type="checkbox" id="n_em_en"> ${t("enablech")}</label>
+    <div class="row2"><div><label>${t("smtpserver")}</label><input id="n_smtp_host"></div><div><label>${t("port")}</label><input id="n_smtp_port" value="587"></div></div>
+    <div class="row2"><div><label>${t("user")}</label><input id="n_smtp_user"></div><div><label>${t("pass")}</label><input id="n_smtp_pass" type="password" placeholder="•••"></div></div>
+    <div class="row2"><div><label>${t("from")}</label><input id="n_smtp_from"></div><div><label>${t("to")}</label><input id="n_em_to"></div></div>
+    <label><input type="checkbox" id="n_smtp_tls" checked> STARTTLS</label></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("thresholds")}</h3>
+    <div class="row2"><div><label>${t("sslthresh")}</label><input id="n_ssl_days" value="14"></div><div><label>${t("diskthresh")}</label><input id="n_disk" value="90"></div></div></div>
+    <div class="card"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="saveNotif()">${t("save")}</button>
+    <button onclick="testNotif()">${t("sendtest")}</button><button onclick="checkNotif()">${t("runcheck")}</button>
+    <button onclick="openWizard()">🚀 ${t("wizard")}</button></div></div>`;
+  try{const r=await api("/api/notifications/config");const c=r.config;
+    $("n_tg_en").checked=(c.telegram_enabled==="true"||c.telegram_enabled===true);
+    $("n_tg_chat").value=c.telegram_chat_id||"";if(c.telegram_token_set)$("n_tg_token").placeholder="••• (تنظیم‌شده)";
+    $("n_em_en").checked=(c.email_enabled==="true"||c.email_enabled===true);
+    $("n_smtp_host").value=c.smtp_host||"";$("n_smtp_port").value=c.smtp_port||"587";
+    $("n_smtp_user").value=c.smtp_user||"";$("n_smtp_from").value=c.smtp_from||"";$("n_em_to").value=c.email_to||"";
+    if(c.smtp_password_set)$("n_smtp_pass").placeholder="••• (تنظیم‌شده)";
+    $("n_smtp_tls").checked=!(c.smtp_tls==="false"||c.smtp_tls===false);
+    $("n_ssl_days").value=c.ssl_days||"14";$("n_disk").value=c.disk_percent||"90"}
+  catch(e){toast(e.message,"err")}}
+async function saveNotif(){const b={telegram_enabled:$("n_tg_en").checked,telegram_chat_id:$("n_tg_chat").value,
+  email_enabled:$("n_em_en").checked,smtp_host:$("n_smtp_host").value,smtp_port:parseInt($("n_smtp_port").value)||587,
+  smtp_user:$("n_smtp_user").value,smtp_from:$("n_smtp_from").value,email_to:$("n_em_to").value,
+  smtp_tls:$("n_smtp_tls").checked,ssl_days:parseInt($("n_ssl_days").value)||14,disk_percent:parseInt($("n_disk").value)||90};
+  if($("n_tg_token").value)b.telegram_token=$("n_tg_token").value;
+  if($("n_smtp_pass").value)b.smtp_password=$("n_smtp_pass").value;
+  try{await api("/api/notifications/config",{method:"POST",body:JSON.stringify(b)});toast(t("saved"),"ok")}catch(e){toast(e.message,"err")}}
+async function testNotif(){try{const r=await api("/api/notifications/test",{method:"POST"});
+  const ok=(r.results||[]).some(x=>x.sent);toast(ok?t("saved"):JSON.stringify(r.results),ok?"ok":"err")}catch(e){toast(e.message,"err")}}
+async function checkNotif(){try{const r=await api("/api/notifications/check",{method:"POST"});toast("alerts sent: "+r.sent,"ok")}catch(e){toast(e.message,"err")}}
+
+// ---- Setup wizard ----
+async function openWizard(){try{const r=await api("/api/setup/status");const s=r.steps;
+  const row=(ok,label)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>${ok?"✅":"⬜"} ${label}</span><span class="pill ${ok?"up":"down"}">${ok?t("done"):t("pending2")}</span></div>`;
+  modal(`<h3>🚀 ${t("wizard")}</h3><p class="muted">${t("wizdesc")} — ${r.progress}%</p>
+    ${row(s.stack_ready,t("wizstack"))}${row(s.password_changed,t("wizpass"))}${row(s.has_site,t("wizsite"))}${row(s.has_backup,t("wizbk"))}${row(s.notifications,t("wiznotif"))}
+    <div style="margin-top:16px;display:flex;gap:8px"><button class="primary" onclick="closeWizard()">${t("wizdone")}</button><button onclick="closeModal()">${t("wizskip")}</button></div>`)}
+  catch(e){toast(e.message,"err")}}
+async function closeWizard(){try{await api("/api/setup/complete",{method:"POST"})}catch(e){}closeModal()}
+
+// ---- Backup restore ----
+async function restoreBk(id){try{const r=await api(`/api/backups/${id}/archives`);
+  if(!r.archives.length){toast(t("none"),"err");return}
+  modal(`<h3>${t("chooserestore")}</h3><p style="color:var(--danger);font-size:13px">${t("restorewarn")}</p>`+
+    r.archives.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(a.name)} <span class="muted">${a.size?fmtB(a.size):""}</span></span><button class="danger" onclick="doRestore(${id},'${pesc(a.name)}')">${t("restore")}</button></div>`).join(""))}
+  catch(e){toast(e.message,"err")}}
+async function doRestore(id,archive){if(!confirm(t("restorewarn")))return;
+  try{const r=await api(`/api/backups/${id}/restore`,{method:"POST",body:JSON.stringify({archive})});closeModal();toast("OK: "+(r.restored_to||t("done")),"ok")}catch(e){toast(e.message,"err")}}
+
+// ---- FTP accounts ----
+async function viewFtp(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><button class="primary" onclick="ftpForm()">+ ${t("addftp")}</button><span id="ftpSrv" class="muted" style="font-size:12px"></span></div></div><div class="card"><div id="ftpList">…</div></div>`;
+  try{const j=await api("/api/ftp");
+    $("ftpSrv").textContent=j.server.installed?("✓ "+(j.server.vsftpd?"vsftpd":"pure-ftpd")):(j.server.hint||"");
+    $("ftpList").innerHTML=j.accounts.length?`<table><thead><tr><th>${t("ftpuser")}</th><th>${t("homedir")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      j.accounts.map(a=>`<tr><td>${esc(a.username)}</td><td class="muted">${esc(a.home_dir)}</td>
+        <td><span class="pill ${a.active?"up":"down"}">${a.active?t("active"):t("locked")}</span></td>
+        <td><button onclick="ftpPass('${pesc(a.username)}')">${t("changepass")}</button>
+        <button onclick="ftpActive('${pesc(a.username)}',${a.active?0:1})">${a.active?t("lock"):t("unlock")}</button>
+        <button class="danger" onclick="ftpDel('${pesc(a.username)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function ftpForm(){modal(`<h3>${t("addftp")}</h3><label>${t("ftpuser")}</label><input id="f_user" placeholder="siteuser">
+  <label>${t("password")}</label><input id="f_pass" type="password">
+  <label>${t("homedir")}</label><input id="f_home" placeholder="/var/www/example.ir">
+  <div style="margin-top:14px"><button class="primary" onclick="ftpCreate()">${t("create")}</button></div>`)}
+async function ftpCreate(){try{await api("/api/ftp",{method:"POST",body:JSON.stringify({username:$("f_user").value,password:$("f_pass").value,home_dir:$("f_home").value})});closeModal();toast(t("saved"),"ok");viewFtp()}catch(e){toast(e.message,"err")}}
+async function ftpPass(u){const p=prompt(t("changepass"));if(!p)return;try{await api(`/api/ftp/${u}/password`,{method:"POST",body:JSON.stringify({password:p})});toast(t("saved"),"ok")}catch(e){toast(e.message,"err")}}
+async function ftpActive(u,act){try{await api(`/api/ftp/${u}/active`,{method:"POST",body:JSON.stringify({active:!!act})});viewFtp()}catch(e){toast(e.message,"err")}}
+async function ftpDel(u){if(!confirm(t("confirmdel")+" "+u))return;const rm=confirm(t("removehome"));
+  try{await api(`/api/ftp/${u}?remove_home=${rm}`,{method:"DELETE"});viewFtp()}catch(e){toast(e.message,"err")}}
+
+// ---- Cron jobs ----
+let cronUsers=[];
+async function viewCron(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="cronForm()">+ ${t("addcron")}</button> <span class="muted" style="font-size:12px">${t("cronhint")}</span></div><div class="card"><div id="cronList">…</div></div>`;
+  try{const j=await api("/api/cron");cronUsers=j.users;
+    $("cronList").innerHTML=j.jobs.length?`<table><thead><tr><th>${t("cronuser")}</th><th>${t("schedule")}</th><th>${t("command")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      j.jobs.map(c=>`<tr><td>${esc(c.cron_user)}</td><td><code>${esc(c.schedule)}</code></td><td class="muted" style="font-size:12px">${esc(c.command)}${c.comment?` <span class="muted">— ${esc(c.comment)}</span>`:""}</td>
+        <td><span class="pill ${c.enabled?"up":"down"}">${c.enabled?t("active"):t("disable")}</span></td>
+        <td><button onclick="cronToggle(${c.id},${c.enabled?0:1})">${t("enabledis")}</button><button class="danger" onclick="cronDel(${c.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function cronForm(){modal(`<h3>${t("addcron")}</h3>
+  <label>${t("cronuser")}</label><select id="c_user">${cronUsers.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join("")}</select>
+  <label>${t("schedule")}</label><input id="c_sched" placeholder="0 3 * * *" value="0 3 * * *">
+  <label>${t("command")}</label><input id="c_cmd" placeholder="/usr/bin/php /var/www/site/cron.php">
+  <label>${t("comment")}</label><input id="c_comment">
+  <p class="muted" style="font-size:12px">${t("cronhint")}</p>
+  <div style="margin-top:14px"><button class="primary" onclick="cronCreate()">${t("create")}</button></div>`)}
+async function cronCreate(){try{await api("/api/cron",{method:"POST",body:JSON.stringify({cron_user:$("c_user").value,schedule:$("c_sched").value,command:$("c_cmd").value,comment:$("c_comment").value})});closeModal();toast(t("saved"),"ok");viewCron()}catch(e){toast(e.message,"err")}}
+async function cronToggle(id,en){try{await api(`/api/cron/${id}/enabled`,{method:"POST",body:JSON.stringify({enabled:!!en})});viewCron()}catch(e){toast(e.message,"err")}}
+async function cronDel(id){if(!confirm(t("confirmdel")))return;try{await api(`/api/cron/${id}`,{method:"DELETE"});viewCron()}catch(e){toast(e.message,"err")}}
+
+// ---- Webmail (Roundcube) ----
+function webmailForm(){modal(`<h3>${t("installwebmail")}</h3><label>${t("domain")}</label><input id="wm_domain" placeholder="mail.example.ir">
+  <div class="row2"><div><label>${t("imaphost")}</label><input id="wm_imap" value="localhost"></div><div><label>${t("smtphost")}</label><input id="wm_smtp" value="localhost"></div></div>
+  <p class="muted" style="font-size:12px">دانلود و نصب روی سرور انجام می‌شود (نیازمند دیتابیس و شبکه).</p>
+  <div style="margin-top:14px"><button class="primary" onclick="installWebmail()">${t("install")}</button></div>`)}
+async function installWebmail(){try{const r=await api("/api/webmail",{method:"POST",body:JSON.stringify({domain:$("wm_domain").value,imap_host:$("wm_imap").value,smtp_host:$("wm_smtp").value})});
+  closeModal();alert("OK: "+JSON.stringify(r,null,1))}catch(e){toast(e.message,"err")}}
+
+// ---- Python / Django apps ----
+async function viewPyapps(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="pyForm()">+ ${t("deployapp")}</button><button onclick="pyTemplateForm()">⚡ ${t("fromtemplate")}</button> <span class="muted" style="font-size:12px">${t("pyapphint")}</span></div></div><div class="card"><div id="pyList">…</div></div>`;
+  try{const j=await api("/api/pyapps");
+    $("pyList").innerHTML=j.apps.length?`<table><thead><tr><th>${t("reponame")}</th><th>${t("domain")}</th><th>${t("apptype")}</th><th>${t("port")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      j.apps.map(a=>`<tr><td><b>${esc(a.name)}</b></td><td class="muted">${esc(a.domain||"—")}</td><td>${esc(a.app_type)}</td><td class="muted">${a.port}</td>
+        <td><span class="pill ${(a.last_status||"").includes("fail")?"down":"up"}">${esc(a.last_status||"—")}</span></td>
+        <td><button class="primary" onclick="pyDeploy(${a.id})">${t("redeploy")}</button>
+        <button onclick="pyWebhook(${a.id})">🔗 ${t("ghwebhook")}</button>
+        <button onclick="pyCtl(${a.id},'restart')">${t("restart")}</button>
+        <button onclick="pyCtl(${a.id},'stop')">${t("stop")}</button>
+        <button onclick="pyLogs(${a.id})">${t("applogs")}</button>
+        <button class="danger" onclick="pyDel(${a.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function pyForm(){modal(`<h3>${t("deployapp")}</h3>
+  <div class="row2"><div><label>${t("reponame")}</label><input id="py_name" placeholder="myblog"></div><div><label>${t("domain")}</label><input id="py_domain" placeholder="blog.example.ir"></div></div>
+  <label>${t("repourl")}</label><input id="py_repo" placeholder="https://github.com/user/repo.git">
+  <div class="row2"><div><label>${t("branch")}</label><input id="py_branch" value="main"></div><div><label>${t("apptype")}</label><select id="py_type"><option value="django">Django</option><option value="wsgi">WSGI (Flask…)</option><option value="asgi">ASGI (FastAPI…)</option></select></div></div>
+  <label>${t("entrypoint")}</label><input id="py_entry" placeholder="myproject.wsgi:application">
+  <label>${t("pyver")}</label><input id="py_ver" placeholder="3.11">
+  <label>${t("envvars")}</label><textarea id="py_env" style="width:100%;height:90px;font-family:monospace;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px" placeholder="DJANGO_SETTINGS_MODULE=myproject.settings"></textarea>
+  <p class="muted" style="font-size:12px">${t("pyapphint")}</p>
+  <div style="margin-top:14px"><button class="primary" onclick="pyCreate()">${t("deploy")}</button></div>`)}
+async function pyCreate(){try{const r=await api("/api/pyapps",{method:"POST",body:JSON.stringify({
+  name:$("py_name").value,domain:$("py_domain").value,repo_url:$("py_repo").value,branch:$("py_branch").value||"main",
+  app_type:$("py_type").value,entry:$("py_entry").value,env_vars:$("py_env").value,python_version:$("py_ver").value||null})});
+  closeModal();alert("OK\n"+((r.build_log||[]).join("\n")));viewPyapps()}catch(e){toast(e.message,"err")}}
+async function pyDeploy(id){try{const r=await api(`/api/pyapps/${id}/deploy`,{method:"POST"});alert((r.build_log||[]).join("\n"));viewPyapps()}catch(e){toast(e.message,"err")}}
+async function pyCtl(id,action){try{await api(`/api/pyapps/${id}/control`,{method:"POST",body:JSON.stringify({action})});toast(t("saved"),"ok");viewPyapps()}catch(e){toast(e.message,"err")}}
+async function pyLogs(id){try{const r=await api(`/api/pyapps/${id}/logs?lines=200`);modal(`<h3>${t("applogs")}: ${esc(r.name)}</h3><pre style="max-height:60vh">${esc(r.content)}</pre>`)}catch(e){toast(e.message,"err")}}
+async function pyDel(id){if(!confirm(t("confirmdel")))return;const rm=confirm(t("removefiles"));
+  try{await api(`/api/pyapps/${id}?remove_files=${rm}`,{method:"DELETE"});viewPyapps()}catch(e){toast(e.message,"err")}}
+async function pyTemplateForm(){let tpls=[];try{tpls=(await api("/api/pyapps/templates")).templates}catch(e){toast(e.message,"err");return}
+  modal(`<h3>⚡ ${t("fromtemplate")}</h3>
+  <div class="row2"><div><label>${t("reponame")}</label><input id="tp_name" placeholder="myapi"></div><div><label>${t("domain")}</label><input id="tp_domain" placeholder="api.example.ir"></div></div>
+  <label>${t("selecttemplate")}</label><select id="tp_tpl">${tpls.map(x=>`<option value="${esc(x.id)}">${esc(x.label)} — ${esc(x.desc)}</option>`).join("")}</select>
+  <label>${t("pyver")}</label><input id="tp_ver" placeholder="3.11">
+  <label>${t("envvars")}</label><textarea id="tp_env" style="width:100%;height:70px;font-family:monospace;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px"></textarea>
+  <div style="margin-top:14px"><button class="primary" onclick="pyTemplateCreate()">${t("create")}</button></div>`)}
+async function pyTemplateCreate(){try{const r=await api("/api/pyapps/template",{method:"POST",body:JSON.stringify({
+  name:$("tp_name").value,domain:$("tp_domain").value,template:$("tp_tpl").value,
+  env_vars:$("tp_env").value,python_version:$("tp_ver").value||null})});
+  closeModal();alert("OK\n"+((r.build_log||[]).join("\n")));viewPyapps()}catch(e){toast(e.message,"err")}}
+async function pyWebhook(id){try{const r=await api(`/api/pyapps/${id}/webhook-info`);
+  const url=location.origin+r.path;
+  modal(`<h3>🔗 ${t("ghwebhook")}: ${esc(r.name)}</h3>
+  <p class="muted" style="font-size:12px">${t("webhookdesc")}</p>
+  <label>${t("webhookurl")}</label><input readonly value="${esc(url)}" onclick="this.select()">
+  <label>${t("secretlbl")}</label><input readonly value="${esc(r.secret)}" onclick="this.select()">
+  <p class="muted" style="font-size:12px">branch: <code>${esc(r.branch)}</code> · event: push</p>
+  <div style="margin-top:12px"><button class="danger" onclick="pyRegen(${id})">${t("regen")}</button></div>`)}
+  catch(e){toast(e.message,"err")}}
+async function pyRegen(id){if(!confirm(t("regen")+"؟"))return;try{await api(`/api/pyapps/${id}/webhook-regenerate`,{method:"POST"});closeModal();pyWebhook(id)}catch(e){toast(e.message,"err")}}
+
+// ---- modal ----
+function modal(html){const bg=document.createElement("div");bg.className="modal-bg";bg.id="modalBg";
+  bg.innerHTML=`<div class="modal">${html}<div style="margin-top:14px"><button onclick="closeModal()">✕</button></div></div>`;
+  bg.addEventListener("click",e=>{if(e.target===bg)closeModal()});document.body.appendChild(bg)}
+function closeModal(){const m=$("modalBg");if(m)m.remove()}
+
+// ---- boot ----
+applyLang();
+if(token){showApp()}else{document.getElementById("login").classList.remove("hidden")}
+document.getElementById("li_pass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+</script>
+</body>
+</html>
