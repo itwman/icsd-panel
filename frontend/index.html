@@ -100,6 +100,7 @@
       <a data-view="settings">⚙️ <span data-i18n="nav_settings">تنظیمات</span></a>
     </nav>
     <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:16px">
+      <button onclick="changePwForm()" style="width:100%;margin-bottom:8px">🔑 <span data-i18n="changepw">تغییر رمز عبور</span></button>
       <button onclick="toggleLang()" id="lang" style="width:100%;margin-bottom:8px">English</button>
       <button class="danger" onclick="logout()" style="width:100%" data-i18n="logout">خروج</button>
     </div>
@@ -155,7 +156,10 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   pyapphint:"مثال جنگو: نوع=django و entry=myproject.wsgi:application — مثال FastAPI: نوع=asgi و entry=main:app",
   usetemplate:"قالب آماده",selecttemplate:"انتخاب قالب",ghwebhook:"وب‌هوک گیت‌هاب",webhookurl:"آدرس وب‌هوک",secretlbl:"کلید مخفی (Secret)",regen:"تولید مجدد کلید",
   webhookdesc:"این آدرس و کلید را در GitHub → Settings → Webhooks وارد کنید (Content type: application/json). با هر push روی شاخه، اپ خودکار به‌روزرسانی می‌شود.",
-  fromtemplate:"ساخت از قالب آماده",blankrepo:"بدون مخزن (برای قالب خالی بگذارید)"},
+  fromtemplate:"ساخت از قالب آماده",blankrepo:"بدون مخزن (برای قالب خالی بگذارید)",
+  managedsites:"سایت‌های مدیریت‌شده",discovered:"سایت‌های کشف‌شده",onserver:"روی سرور پیدا شد",
+  discoverhint:"این سایت‌ها روی Nginx هستند ولی هنوز توسط پنل مدیریت نمی‌شوند.",
+  go:"برو",account:"حساب کاربری",changepw:"تغییر رمز عبور",oldpw:"رمز فعلی",newpw:"رمز جدید"},
  en:{title:"ICSD Server Panel",subtitle:"Iranian Carpet Smart Development",username:"Username",
   password:"Password",otp:"2FA code (if enabled)",login:"Sign in",logout:"Logout",
   defcred:"Default: admin / admin12345 — change it after login",
@@ -195,7 +199,10 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   pyapphint:"Django: type=django, entry=myproject.wsgi:application — FastAPI: type=asgi, entry=main:app",
   usetemplate:"Template",selecttemplate:"Choose template",ghwebhook:"GitHub webhook",webhookurl:"Webhook URL",secretlbl:"Secret",regen:"Regenerate secret",
   webhookdesc:"Add this URL and secret in GitHub → Settings → Webhooks (Content type: application/json). Every push to the branch auto-redeploys.",
-  fromtemplate:"Create from template",blankrepo:"No repo (leave blank for template)"}};
+  fromtemplate:"Create from template",blankrepo:"No repo (leave blank for template)",
+  managedsites:"Managed sites",discovered:"Discovered sites",onserver:"found on server",
+  discoverhint:"These vhosts exist in Nginx but are not yet managed by the panel.",
+  go:"Go",account:"Account",changepw:"Change password",oldpw:"Current password",newpw:"New password"}};
 let lang=localStorage.getItem("icsd_lang")||"fa";
 function t(k){return T[lang][k]||k}
 function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=lang==="fa"?"rtl":"ltr";
@@ -296,14 +303,20 @@ async function viewSites(){
   $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="siteForm()">+ ${t("addsite")}</button>
     <span style="margin-inline-start:8px"></span><button onclick="subForm()">+ ${t("addsub")}</button>
     <span style="margin-inline-start:8px"></span><button onclick="healthAll()">${t("healthcheck")}</button>
-    <div id="healthBox" style="margin-top:10px"></div></div><div class="card"><div id="siteList">…</div></div>`;
+    <div id="healthBox" style="margin-top:10px"></div></div>
+    <div class="card" style="margin-bottom:16px"><h3>${t("managedsites")}</h3><div id="siteList">…</div></div>
+    <div class="card"><h3>${t("discovered")} <span class="muted" style="font-size:12px">(${t("onserver")})</span></h3><div id="discSites" class="muted">…</div></div>`;
   try{const j=await api("/api/sites");const s=j.sites;
     $("siteList").innerHTML=s.length?`<table><thead><tr><th>${t("domain")}</th><th>${t("type")}</th><th>SSL</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
       s.map(x=>`<tr><td>${esc(x.domain)}</td><td>${esc(x.site_type)}</td><td>${x.ssl_enabled?"🔒":"—"}</td>
         <td><span class="pill ${x.enabled?"up":"down"}">${x.enabled?t("enable"):t("disable")}</span></td>
         <td><button onclick="toggleSite('${esc(x.domain)}',${x.enabled?0:1})">${x.enabled?t("disable"):t("enable")}</button>
         <button class="danger" onclick="delSite('${esc(x.domain)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
-  catch(e){toast(e.message,"err")}}
+  catch(e){toast(e.message,"err")}
+  try{const r=await api("/api/discovery/vhosts");const vh=(r.vhosts||[]).filter(v=>!v.in_panel_db);
+    $("discSites").innerHTML=vh.length?`<table><thead><tr><th>${t("domain")}</th><th>SSL</th><th>${t("status")}</th></tr></thead><tbody>`+
+      vh.map(v=>`<tr><td>${(v.domains||[]).map(esc).join(", ")||"—"}</td><td>${v.ssl?"🔒":"—"}</td><td><span class="pill down">untracked</span></td></tr>`).join("")+`</tbody></table><p class="muted" style="font-size:12px;margin-top:8px">${t("discoverhint")}</p>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){$("discSites").innerHTML=`<span class="muted">${t("none")}</span>`}}
 function siteForm(){modal(`<h3>${t("addsite")}</h3>
   <label>${t("domain")}</label><input id="s_domain" placeholder="example.ir">
   <label>${t("type")}</label><select id="s_type" onchange="document.getElementById('s_php').classList.toggle('hidden',this.value!=='php');document.getElementById('s_proxy').classList.toggle('hidden',this.value!=='proxy')">
@@ -332,10 +345,18 @@ async function delSite(d){if(!confirm(t("confirmdel")+" "+d))return;try{await ap
 // ---- Databases ----
 async function viewDatabases(){
   $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><button class="primary" onclick="dbForm()">+ ${t("adddb")}</button></div><div class="card"><div id="dbList">…</div></div>`;
-  try{const j=await api("/api/databases");const m=j.managed;
-    $("dbList").innerHTML=m.length?`<table><thead><tr><th>${t("dbname")}</th><th>${t("user")}</th><th>${t("engine")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
-      m.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.db_user)}</td><td><span class="pill up">${esc(x.engine)}</span></td>
-        <td><button onclick="resetDb('${esc(x.name)}','${esc(x.engine)}')">🔑</button><button class="danger" onclick="delDb('${esc(x.name)}','${esc(x.engine)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  try{const j=await api("/api/databases");const eng=j.engines||{};
+    const rows=[];
+    for(const e of ["mysql","postgres"]){
+      const data=eng[e]||{};const managed=data.managed||[];const live=data.live||[];
+      const mnames=new Set(managed.map(x=>x.name));
+      managed.forEach(x=>rows.push({name:x.name,user:x.db_user||"—",engine:e,managed:true}));
+      (live||[]).forEach(n=>{if(!mnames.has(n))rows.push({name:n,user:"—",engine:e,managed:false})});
+    }
+    $("dbList").innerHTML=rows.length?`<table><thead><tr><th>${t("dbname")}</th><th>${t("user")}</th><th>${t("engine")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      rows.map(x=>`<tr><td>${esc(x.name)}</td><td class="muted">${esc(x.user)}</td><td><span class="pill up">${esc(x.engine)}</span></td>
+        <td><span class="pill ${x.managed?"up":"down"}">${x.managed?"managed":"untracked"}</span></td>
+        <td>${x.managed?`<button onclick="resetDb('${esc(x.name)}','${esc(x.engine)}')">🔑</button>`:""}<button class="danger" onclick="delDb('${esc(x.name)}','${esc(x.engine)}')">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
   catch(e){toast(e.message,"err")}}
 function dbForm(){modal(`<h3>${t("adddb")}</h3>
   <label>${t("engine")}</label><select id="d_engine"><option value="mysql">MySQL / MariaDB</option><option value="postgres">PostgreSQL</option></select>
@@ -571,11 +592,18 @@ async function checkNotif(){try{const r=await api("/api/notifications/check",{me
 
 // ---- Setup wizard ----
 async function openWizard(){try{const r=await api("/api/setup/status");const s=r.steps;
-  const row=(ok,label)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>${ok?"✅":"⬜"} ${label}</span><span class="pill ${ok?"up":"down"}">${ok?t("done"):t("pending2")}</span></div>`;
+  const row=(ok,label,action)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><span>${ok?"✅":"⬜"} ${label}</span>`+
+    (ok?`<span class="pill up">${t("done")}</span>`:(action?`<button onclick="${action}">${t("go")} ←</button>`:`<span class="pill down">${t("pending2")}</span>`))+`</div>`;
   modal(`<h3>🚀 ${t("wizard")}</h3><p class="muted">${t("wizdesc")} — ${r.progress}%</p>
-    ${row(s.stack_ready,t("wizstack"))}${row(s.password_changed,t("wizpass"))}${row(s.has_site,t("wizsite"))}${row(s.has_backup,t("wizbk"))}${row(s.notifications,t("wiznotif"))}
+    ${row(s.stack_ready,t("wizstack"),null)}${row(s.password_changed,t("wizpass"),"closeModal();changePwForm()")}${row(s.has_site,t("wizsite"),"closeModal();setView('sites')")}${row(s.has_backup,t("wizbk"),"closeModal();setView('backups')")}${row(s.notifications,t("wiznotif"),"closeModal();setView('settings')")}
     <div style="margin-top:16px;display:flex;gap:8px"><button class="primary" onclick="closeWizard()">${t("wizdone")}</button><button onclick="closeModal()">${t("wizskip")}</button></div>`)}
   catch(e){toast(e.message,"err")}}
+function changePwForm(){modal(`<h3>🔑 ${t("changepw")}</h3>
+  <label>${t("oldpw")}</label><input id="cp_old" type="password">
+  <label>${t("newpw")}</label><input id="cp_new" type="password">
+  <div style="margin-top:14px"><button class="primary" onclick="doChangePw()">${t("save")}</button></div>`)}
+async function doChangePw(){try{await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({old_password:$("cp_old").value,new_password:$("cp_new").value})});
+  closeModal();toast(t("saved"),"ok");try{await api("/api/setup/complete",{method:"POST"})}catch(e){}}catch(e){toast(e.message,"err")}}
 async function closeWizard(){try{await api("/api/setup/complete",{method:"POST"})}catch(e){}closeModal()}
 
 // ---- Backup restore ----

@@ -27,10 +27,11 @@ def _valid_ident(name: str, what: str) -> str:
 
 
 def _mysql_exec(sql: str) -> oscmd.CmdResult:
-    """Execute SQL via the system mysql client (uses local root/socket auth)."""
+    """Execute SQL via the system mysql client as root (sudo for socket auth)."""
     if not oscmd.has("mysql"):
         raise DBError("کلاینت mysql نصب نیست / mysql client not installed")
-    return oscmd.run(["mysql", "-N", "-B", "-e", sql], timeout=30)
+    # MariaDB root uses unix_socket auth → must run as root (via sudo when unprivileged)
+    return oscmd.run_priv(["mysql", "-N", "-B", "-e", sql], timeout=30)
 
 
 def gen_password(length: int = 18) -> str:

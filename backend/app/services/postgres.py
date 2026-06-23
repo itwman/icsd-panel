@@ -33,7 +33,7 @@ def _psql(sql: str) -> oscmd.CmdResult:
     if not available():
         raise PGError("کلاینت psql نصب نیست / psql client not installed")
     if oscmd.has("sudo"):
-        return oscmd.run(["sudo", "-u", "postgres", "psql", "-tAc", sql], timeout=30)
+        return oscmd.run(["sudo", "-n", "-u", "postgres", "psql", "-tAc", sql], timeout=30)
     return oscmd.run(["psql", "-U", "postgres", "-tAc", sql], timeout=30)
 
 

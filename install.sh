@@ -216,10 +216,22 @@ done
 [[ -x /root/.acme.sh/acme.sh ]] && SUDO_CMDS+=("/root/.acme.sh/acme.sh")
 if [[ ${#SUDO_CMDS[@]} -gt 0 ]]; then
   JOINED="$(IFS=, ; echo "${SUDO_CMDS[*]}")"   # comma-separated Cmnd list
+  # PostgreSQL از peer-auth استفاده می‌کند؛ پنل باید psql/pg_dump را به‌عنوان کاربر postgres اجرا کند.
+  PG_LINE=""
+  PSQL_BIN="$(command -v psql 2>/dev/null || true)"
+  PGDUMP_BIN="$(command -v pg_dump 2>/dev/null || true)"
+  if [[ -n "$PSQL_BIN" || -n "$PGDUMP_BIN" ]]; then
+    PG_CMDS=()
+    [[ -n "$PSQL_BIN" ]] && PG_CMDS+=("$PSQL_BIN")
+    [[ -n "$PGDUMP_BIN" ]] && PG_CMDS+=("$PGDUMP_BIN")
+    PG_JOINED="$(IFS=, ; echo "${PG_CMDS[*]}")"
+    PG_LINE="$PANEL_USER ALL=(postgres) NOPASSWD: ${PG_JOINED//,/, }"
+  fi
   cat > "$SUDO_FILE" <<EOF
 # ICSD Panel — privileged commands (managed by installer; do not edit by hand)
 # هر دستور با هر آرگومانی قابل اجراست؛ دامنه به همین باینری‌های مدیریتی محدود است.
 $PANEL_USER ALL=(root) NOPASSWD: ${JOINED//,/, }
+$PG_LINE
 EOF
   chmod 0440 "$SUDO_FILE"
   if visudo -cf "$SUDO_FILE" >/dev/null 2>&1; then
