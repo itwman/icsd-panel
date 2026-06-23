@@ -92,6 +92,7 @@
       <a data-view="apps">🧩 <span data-i18n="nav_apps">برنامه‌ها</span></a>
       <a data-view="pyapps">🐍 <span data-i18n="nav_pyapps">پایتون/جنگو</span></a>
       <a data-view="ssl">🔒 <span data-i18n="nav_ssl">گواهی SSL</span></a>
+      <a data-view="dns">🌍 <span data-i18n="nav_dns">DNS</span></a>
       <a data-view="email">✉️ <span data-i18n="nav_email">ایمیل</span></a>
       <a data-view="security">🛡️ <span data-i18n="nav_sec">امنیت</span></a>
       <a data-view="logs">📜 <span data-i18n="nav_logs">لاگ‌ها</span></a>
@@ -138,6 +139,7 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   nav_files:"فایل‌ها",nav_logs:"لاگ‌ها",nav_settings:"تنظیمات",
   upload:"آپلود",newfolder:"پوشهٔ جدید",newfile:"فایل جدید",download:"دانلود",edit:"ویرایش",rename:"تغییر نام",
   extract:"اکسترکت",save:"ذخیره",size:"حجم",modified:"تغییر",perms:"دسترسی",back:"بازگشت",
+  selected:"انتخاب‌شده",copy:"کپی",cut:"برش",paste:"چسباندن",compress:"فشرده‌سازی",copied2:"در کلیپ‌بورد",archivename:"نام فایل فشرده",
   restore:"بازیابی",archives:"آرشیوها",chooserestore:"انتخاب آرشیو برای بازیابی",restorewarn:"هشدار: محتوای فعلی بازنویسی می‌شود!",
   logviewer:"نمایشگر لاگ",nginxlogs:"لاگ‌های Nginx",systemlogs:"لاگ‌های سیستم",servicelogs:"لاگ سرویس",lines:"تعداد خطوط",refresh:"تازه‌سازی",
   notifications:"اعلان‌ها",telegram:"تلگرام",emailch:"ایمیل (SMTP)",enablech:"فعال",botToken:"توکن ربات",chatId:"شناسهٔ چت (Chat ID)",
@@ -159,7 +161,10 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   fromtemplate:"ساخت از قالب آماده",blankrepo:"بدون مخزن (برای قالب خالی بگذارید)",
   managedsites:"سایت‌های مدیریت‌شده",discovered:"سایت‌های کشف‌شده",onserver:"روی سرور پیدا شد",
   discoverhint:"این سایت‌ها روی Nginx هستند ولی هنوز توسط پنل مدیریت نمی‌شوند.",
-  go:"برو",account:"حساب کاربری",changepw:"تغییر رمز عبور",oldpw:"رمز فعلی",newpw:"رمز جدید"},
+  go:"برو",account:"حساب کاربری",changepw:"تغییر رمز عبور",oldpw:"رمز فعلی",newpw:"رمز جدید",
+  nav_dns:"DNS",addzone:"افزودن zone (دامنه)",zone:"zone",records:"رکوردها",recordtype:"نوع",recordname:"نام",recordcontent:"مقدار",
+  ttl:"TTL",priority:"اولویت",exportzone:"خروجی zone",applyzone:"اعمال روی BIND",addrecord:"افزودن رکورد",editrecord:"ویرایش رکورد",
+  nameserver:"نیم‌سرور",adminemail:"ایمیل مدیر",backzones:"بازگشت به zoneها",dnshint:"رکوردها ذخیره می‌شوند؛ اگر BIND نصب باشد اعمال می‌شوند، وگرنه خروجی zone را در DNS بیرونی استفاده کنید."},
  en:{title:"ICSD Server Panel",subtitle:"Iranian Carpet Smart Development",username:"Username",
   password:"Password",otp:"2FA code (if enabled)",login:"Sign in",logout:"Logout",
   defcred:"Default: admin / admin12345 — change it after login",
@@ -181,6 +186,7 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   nav_files:"Files",nav_logs:"Logs",nav_settings:"Settings",
   upload:"Upload",newfolder:"New folder",newfile:"New file",download:"Download",edit:"Edit",rename:"Rename",
   extract:"Extract",save:"Save",size:"Size",modified:"Modified",perms:"Perms",back:"Back",
+  selected:"selected",copy:"Copy",cut:"Cut",paste:"Paste",compress:"Compress",copied2:"in clipboard",archivename:"Archive name",
   restore:"Restore",archives:"Archives",chooserestore:"Choose an archive to restore",restorewarn:"Warning: current content will be overwritten!",
   logviewer:"Log viewer",nginxlogs:"Nginx logs",systemlogs:"System logs",servicelogs:"Service log",lines:"Lines",refresh:"Refresh",
   notifications:"Notifications",telegram:"Telegram",emailch:"Email (SMTP)",enablech:"Enabled",botToken:"Bot token",chatId:"Chat ID",
@@ -202,7 +208,10 @@ const T={fa:{title:"پنل مدیریت سرور ICSD",subtitle:"توسعه هو
   fromtemplate:"Create from template",blankrepo:"No repo (leave blank for template)",
   managedsites:"Managed sites",discovered:"Discovered sites",onserver:"found on server",
   discoverhint:"These vhosts exist in Nginx but are not yet managed by the panel.",
-  go:"Go",account:"Account",changepw:"Change password",oldpw:"Current password",newpw:"New password"}};
+  go:"Go",account:"Account",changepw:"Change password",oldpw:"Current password",newpw:"New password",
+  nav_dns:"DNS",addzone:"Add zone (domain)",zone:"zone",records:"Records",recordtype:"Type",recordname:"Name",recordcontent:"Value",
+  ttl:"TTL",priority:"Priority",exportzone:"Export zone",applyzone:"Apply to BIND",addrecord:"Add record",editrecord:"Edit record",
+  nameserver:"Nameserver",adminemail:"Admin email",backzones:"Back to zones",dnshint:"Records are saved; applied to BIND if installed, otherwise use the exported zone in external DNS."}};
 let lang=localStorage.getItem("icsd_lang")||"fa";
 function t(k){return T[lang][k]||k}
 function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=lang==="fa"?"rtl":"ltr";
@@ -243,12 +252,12 @@ async function showApp(user){
 // ---------------- views ----------------
 function setView(v){currentView=v;
   document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.view===v));
-  document.getElementById("viewTitle").textContent=t("nav_"+({dashboard:"dash",sites:"sites",files:"files",ftp:"ftp",databases:"db",apps:"apps",pyapps:"pyapps",ssl:"ssl",email:"email",security:"sec",logs:"logs",cron:"cron",backups:"bk",settings:"settings"}[v]));
+  document.getElementById("viewTitle").textContent=t("nav_"+({dashboard:"dash",sites:"sites",files:"files",ftp:"ftp",databases:"db",apps:"apps",pyapps:"pyapps",ssl:"ssl",dns:"dns",email:"email",security:"sec",logs:"logs",cron:"cron",backups:"bk",settings:"settings"}[v]));
   if(ws&&v!=="dashboard"){try{ws.close()}catch(e){}ws=null}
   render(v)}
 document.getElementById("nav").addEventListener("click",e=>{const a=e.target.closest("a");if(a)setView(a.dataset.view)});
 
-function render(v){({dashboard:viewDashboard,sites:viewSites,files:viewFiles,ftp:viewFtp,databases:viewDatabases,apps:viewApps,pyapps:viewPyapps,ssl:viewSSL,email:viewEmail,security:viewSecurity,logs:viewLogs,cron:viewCron,backups:viewBackups,settings:viewSettings}[v])()}
+function render(v){({dashboard:viewDashboard,sites:viewSites,files:viewFiles,ftp:viewFtp,databases:viewDatabases,apps:viewApps,pyapps:viewPyapps,ssl:viewSSL,dns:viewDNS,email:viewEmail,security:viewSecurity,logs:viewLogs,cron:viewCron,backups:viewBackups,settings:viewSettings}[v])()}
 const $=id=>document.getElementById(id);
 function fmtB(b){if(b==null)return"—";const u=["B","KB","MB","GB","TB"];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++}return b.toFixed(1)+" "+u[i]}
 function fmtUp(s){const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+"d ":"")+h+"h "+m+"m"}
@@ -487,24 +496,29 @@ async function scanPath(){try{const r=await api("/api/security/scan",{method:"PO
 // path-safe escape for inline JS string args (handles \ and ' then HTML-escapes)
 function pesc(s){return esc(String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"))}
 
-// ---- File manager ----
-let fmPath=null;
+// ---- File manager (pro: multi-select + clipboard + bulk ops) ----
+let fmPath=null, fmClip=null;   // fmClip = {mode:'copy'|'cut', paths:[...]}
 async function viewFiles(){
   $("views").innerHTML=`<div class="card" style="margin-bottom:12px"><div id="fmRoots" class="muted">…</div></div>
-    <div class="card"><div id="fmBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px"></div>
+    <div class="card"><div id="fmBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div>
+    <div id="fmActions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px"></div>
     <div id="fmList">…</div><input type="file" id="fmFile" style="display:none" onchange="fmUpload(this)"></div>`;
   try{const r=await api("/api/files/roots");
     $("fmRoots").innerHTML=r.roots.length?r.roots.map(x=>`<button onclick="fmOpen('${pesc(x.path)}')">📁 ${esc(x.name||x.path)}</button>`).join(" "):t("none");
     if((!fmPath)&&r.roots.length)fmPath=r.roots[0].path;
     if(fmPath)fmOpen(fmPath);else $("fmList").innerHTML=`<p class="muted">${t("none")}</p>`}
   catch(e){toast(e.message,"err")}}
+function fmCrumbs(p){const parts=p.replace(/\/+$/,"").split("/").filter(Boolean);let acc="";const out=[`<a style="cursor:pointer" onclick="fmOpen('/')">/</a>`];
+  for(const part of parts){acc+="/"+part;out.push(`<a style="cursor:pointer" onclick="fmOpen('${pesc(acc)}')">${esc(part)}</a>`)}
+  return out.join(' <span class="muted">/</span> ')}
 async function fmOpen(p){fmPath=p;try{const r=await api("/api/files/list?path="+encodeURIComponent(p));
-  $("fmBar").innerHTML=`<code style="flex:1;min-width:160px">${esc(r.path)}</code>`+
+  $("fmBar").innerHTML=`<div style="flex:1;min-width:160px;font-size:13px">${fmCrumbs(r.path)}</div>`+
     (r.parent?`<button onclick="fmOpen('${pesc(r.parent)}')">⬆ ${t("back")}</button>`:"")+
     `<button onclick="$('fmFile').click()">⬆ ${t("upload")}</button>`+
     `<button onclick="fmNew('mkdir')">+ ${t("newfolder")}</button><button onclick="fmNew('new')">+ ${t("newfile")}</button>`;
-  $("fmList").innerHTML=`<table><thead><tr><th>نام / Name</th><th>${t("size")}</th><th>${t("modified")}</th><th>${t("perms")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
-    (r.entries.length?r.entries.map(fmRow).join(""):`<tr><td colspan="5" class="muted">${t("none")}</td></tr>`)+`</tbody></table>`}
+  $("fmList").innerHTML=`<table><thead><tr><th style="width:28px"><input type="checkbox" onchange="fmSelAll(this.checked)"></th><th>نام / Name</th><th>${t("size")}</th><th>${t("modified")}</th><th>${t("perms")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+    (r.entries.length?r.entries.map(fmRow).join(""):`<tr><td colspan="6" class="muted">${t("none")}</td></tr>`)+`</tbody></table>`;
+  fmRenderActions()}
   catch(e){toast(e.message,"err")}}
 function fmRow(x){const icon=x.is_dir?"📁":"📄";
   const name=x.is_dir?`<a style="cursor:pointer" onclick="fmOpen('${pesc(x.path)}')">${icon} ${esc(x.name)}</a>`:`${icon} ${esc(x.name)}`;
@@ -513,8 +527,26 @@ function fmRow(x){const icon=x.is_dir?"📁":"📄";
     if(x.editable)act+=`<button onclick="fmEdit('${pesc(x.path)}')">${t("edit")}</button>`;
     if(/\.(zip|tar|gz|tgz)$/i.test(x.name))act+=`<button onclick="fmExtract('${pesc(x.path)}')">${t("extract")}</button>`}
   act+=`<button onclick="fmRename('${pesc(x.path)}','${pesc(x.name)}')">${t("rename")}</button>`;
+  act+=`<button onclick="fmChmod('${pesc(x.path)}','${esc(x.mode||"")}')">${t("perms")}</button>`;
   act+=`<button class="danger" onclick="fmDelete('${pesc(x.path)}')">${t("del")}</button>`;
-  return `<tr><td>${name}</td><td class="muted">${x.is_dir?"—":fmtB(x.size)}</td><td class="muted" style="font-size:12px">${esc(x.modified||"")}</td><td class="muted" style="font-size:12px">${esc(x.mode||"")}</td><td>${act}</td></tr>`}
+  return `<tr><td><input type="checkbox" class="fmck" value="${esc(x.path)}" onchange="fmRenderActions()"></td><td>${name}</td><td class="muted">${x.is_dir?"—":fmtB(x.size)}</td><td class="muted" style="font-size:12px">${esc(x.modified||"")}</td><td class="muted" style="font-size:12px">${esc(x.mode||"")}</td><td>${act}</td></tr>`}
+function fmSelected(){return Array.from(document.querySelectorAll(".fmck:checked")).map(c=>c.value)}
+function fmSelAll(on){document.querySelectorAll(".fmck").forEach(c=>c.checked=on);fmRenderActions()}
+function fmRenderActions(){const n=fmSelected().length;const clip=fmClip?fmClip.paths.length:0;
+  $("fmActions").innerHTML=`<span class="muted" style="font-size:12px">${n} ${t("selected")}</span>`+
+    (n?`<button onclick="fmClipboard('copy')">📋 ${t("copy")}</button><button onclick="fmClipboard('cut')">✂️ ${t("cut")}</button>`+
+       `<button onclick="fmCompressSel()">🗜️ ${t("compress")}</button><button class="danger" onclick="fmDeleteSel()">🗑️ ${t("del")}</button>`:"")+
+    (clip?` <span class="muted">|</span> <button class="primary" onclick="fmPaste()">📥 ${t("paste")} (${clip} ${fmClip.mode==="cut"?"✂️":"📋"})</button><button onclick="fmClip=null;fmRenderActions()">✕</button>`:"")}
+function fmClipboard(mode){const paths=fmSelected();if(!paths.length)return;fmClip={mode,paths};toast(paths.length+" "+t("copied2"),"ok");fmRenderActions()}
+async function fmPaste(){if(!fmClip)return;const ep=fmClip.mode==="cut"?"move":"copy";
+  try{const r=await api("/api/files/"+ep,{method:"POST",body:JSON.stringify({paths:fmClip.paths,dest_dir:fmPath})});
+    toast(t("done"),"ok");if(fmClip.mode==="cut")fmClip=null;fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmDeleteSel(){const paths=fmSelected();if(!paths.length)return;if(!confirm(t("confirmdel")+" ("+paths.length+")"))return;
+  try{await api("/api/files/delete-many",{method:"POST",body:JSON.stringify({paths})});fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmCompressSel(){const paths=fmSelected();if(!paths.length)return;const name=prompt(t("archivename"),"archive.zip");if(!name)return;
+  try{const r=await api("/api/files/compress",{method:"POST",body:JSON.stringify({paths,archive_name:name,dest_dir:fmPath})});toast(t("done"),"ok");fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
+async function fmChmod(p,cur){const m=prompt(t("perms")+" (e.g. 755)",cur||"644");if(!m)return;
+  try{await api("/api/files/chmod",{method:"POST",body:JSON.stringify({path:p,mode:m})});fmOpen(fmPath)}catch(e){toast(e.message,"err")}}
 async function fmUpload(inp){const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append("dir_path",fmPath);fd.append("file",f);
   try{const r=await fetch("/api/files/upload",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||"HTTP "+r.status);toast(t("saved"),"ok");inp.value="";fmOpen(fmPath)}
@@ -719,6 +751,46 @@ async function pyWebhook(id){try{const r=await api(`/api/pyapps/${id}/webhook-in
   <div style="margin-top:12px"><button class="danger" onclick="pyRegen(${id})">${t("regen")}</button></div>`)}
   catch(e){toast(e.message,"err")}}
 async function pyRegen(id){if(!confirm(t("regen")+"؟"))return;try{await api(`/api/pyapps/${id}/webhook-regenerate`,{method:"POST"});closeModal();pyWebhook(id)}catch(e){toast(e.message,"err")}}
+
+// ---- DNS / Zone editor ----
+let dnsTypes=["A","AAAA","CNAME","MX","TXT","NS","SRV","CAA"], dnsRecords=[];
+async function viewDNS(){
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><button class="primary" onclick="zoneForm()">+ ${t("addzone")}</button><span id="dnsStatus" class="muted" style="font-size:12px"></span></div><p class="muted" style="font-size:12px;margin-top:8px">${t("dnshint")}</p></div><div class="card"><div id="zoneList">…</div></div>`;
+  try{const j=await api("/api/dns");
+    $("dnsStatus").textContent=j.status.bind_installed?"BIND ✓":(j.status.hint||"");
+    $("zoneList").innerHTML=j.zones.length?`<table><thead><tr><th>${t("domain")}</th><th>${t("records")}</th><th>serial</th><th>${t("actions")}</th></tr></thead><tbody>`+
+      j.zones.map(z=>`<tr><td><a style="cursor:pointer" onclick="openZone(${z.id})">${esc(z.domain)}</a></td><td class="muted">${z.record_count}</td><td class="muted">${z.serial}</td>
+        <td><button class="primary" onclick="openZone(${z.id})">${t("records")}</button><button onclick="exportZone(${z.id})">${t("exportzone")}</button><button class="danger" onclick="delZone(${z.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function zoneForm(){modal(`<h3>${t("addzone")}</h3><label>${t("domain")}</label><input id="z_dom" placeholder="example.ir">
+  <div class="row2"><div><label>${t("nameserver")} 1</label><input id="z_ns1" placeholder="ns1.example.ir"></div><div><label>${t("nameserver")} 2</label><input id="z_ns2" placeholder="ns2.example.ir"></div></div>
+  <label>${t("adminemail")}</label><input id="z_admin" placeholder="admin@example.ir">
+  <div style="margin-top:14px"><button class="primary" onclick="createZone()">${t("create")}</button></div>`)}
+async function createZone(){try{await api("/api/dns",{method:"POST",body:JSON.stringify({domain:$("z_dom").value,ns1:$("z_ns1").value,ns2:$("z_ns2").value,admin_email:$("z_admin").value})});closeModal();toast(t("saved"),"ok");viewDNS()}catch(e){toast(e.message,"err")}}
+async function delZone(id){if(!confirm(t("confirmdel")))return;try{await api(`/api/dns/${id}`,{method:"DELETE"});viewDNS()}catch(e){toast(e.message,"err")}}
+async function openZone(id){try{const j=await api(`/api/dns/${id}/records`);dnsTypes=j.types||dnsTypes;dnsRecords=j.records;
+  $("views").innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div><button onclick="viewDNS()">← ${t("backzones")}</button> <b style="margin-inline-start:8px">${esc(j.zone.domain)}</b></div>
+    <div><button class="primary" onclick="recordForm(${id},0)">+ ${t("addrecord")}</button><button onclick="exportZone(${id})">${t("exportzone")}</button><button onclick="applyZone(${id})">${t("applyzone")}</button></div></div></div>
+    <div class="card"><div id="recList"></div></div>`;
+  $("recList").innerHTML=dnsRecords.length?`<table><thead><tr><th>${t("recordname")}</th><th>${t("recordtype")}</th><th>${t("recordcontent")}</th><th>${t("ttl")}</th><th>${t("priority")}</th><th>${t("actions")}</th></tr></thead><tbody>`+
+    dnsRecords.map(r=>`<tr><td>${esc(r.name)}</td><td><span class="pill up">${esc(r.type)}</span></td><td class="muted">${esc(r.content)}</td><td class="muted">${r.ttl}</td><td class="muted">${r.priority==null?"—":r.priority}</td>
+      <td><button onclick="recordForm(${id},${r.id})">${t("edit")}</button><button class="danger" onclick="delRecord(${id},${r.id})">${t("del")}</button></td></tr>`).join("")+`</tbody></table>`:`<p class="muted">${t("none")}</p>`}
+  catch(e){toast(e.message,"err")}}
+function recordForm(zoneId,recId){const r=recId?dnsRecords.find(x=>x.id===recId):null;
+  modal(`<h3>${r?t("editrecord"):t("addrecord")}</h3>
+  <div class="row2"><div><label>${t("recordtype")}</label><select id="r_type">${dnsTypes.map(tp=>`<option value="${tp}" ${r&&r.type===tp?"selected":""}>${tp}</option>`).join("")}</select></div>
+  <div><label>${t("recordname")}</label><input id="r_name" value="${r?esc(r.name):"@"}"></div></div>
+  <label>${t("recordcontent")}</label><input id="r_content" value="${r?esc(r.content):""}" placeholder="1.2.3.4 / example.ir. / v=spf1 ...">
+  <div class="row2"><div><label>${t("ttl")}</label><input id="r_ttl" value="${r?r.ttl:3600}"></div><div><label>${t("priority")} (MX/SRV)</label><input id="r_prio" value="${r&&r.priority!=null?r.priority:""}"></div></div>
+  <div style="margin-top:14px"><button class="primary" onclick="saveRecord(${zoneId},${recId||0})">${t("save")}</button></div>`)}
+async function saveRecord(zoneId,recId){const body={type:$("r_type").value,name:$("r_name").value||"@",content:$("r_content").value,ttl:parseInt($("r_ttl").value)||3600,priority:$("r_prio").value?parseInt($("r_prio").value):null};
+  try{if(recId){await api(`/api/dns/records/${recId}`,{method:"PUT",body:JSON.stringify(body)})}else{await api(`/api/dns/${zoneId}/records`,{method:"POST",body:JSON.stringify(body)})}
+  closeModal();toast(t("saved"),"ok");openZone(zoneId)}catch(e){toast(e.message,"err")}}
+async function delRecord(zoneId,recId){if(!confirm(t("confirmdel")))return;try{await api(`/api/dns/records/${recId}`,{method:"DELETE"});openZone(zoneId)}catch(e){toast(e.message,"err")}}
+async function applyZone(id){try{const r=await api(`/api/dns/${id}/apply`,{method:"POST"});toast("OK: "+(r.file||t("done")),"ok")}catch(e){toast(e.message,"err")}}
+async function exportZone(id){try{const res=await fetch(`/api/dns/${id}/export`,{headers:{Authorization:"Bearer "+token}});const txt=await res.text();
+  modal(`<h3>${t("exportzone")}</h3><textarea readonly onclick="this.select()" style="width:100%;height:50vh;font-family:monospace;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px">${esc(txt)}</textarea>`)}catch(e){toast(e.message,"err")}}
 
 // ---- modal ----
 function modal(html){const bg=document.createElement("div");bg.className="modal-bg";bg.id="modalBg";

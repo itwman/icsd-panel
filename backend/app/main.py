@@ -21,7 +21,7 @@ from app.services import scheduler
 from app.services import users
 from app.api import (monitoring, system, auth, sites, databases, ssl, backup,
                      apps, discovery, security, email, files, notifications,
-                     logs, setup, ftp, cron, webmail, pyapp)
+                     logs, setup, ftp, cron, webmail, pyapp, dns)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("icsd")
@@ -58,7 +58,7 @@ app.add_middleware(
 
 for r in (monitoring, system, auth, sites, databases, ssl, backup,
           apps, discovery, security, email, files, notifications, logs, setup,
-          ftp, cron, webmail, pyapp):
+          ftp, cron, webmail, pyapp, dns):
     app.include_router(r.router)
 
 

@@ -124,6 +124,14 @@ if [[ "$INSTALL_STACK" == "full" ]]; then
   log "نصب fail2ban (محافظت برابر بروت‌فورس)..."
   pkg_install fail2ban && svc_enable fail2ban || warn "fail2ban نصب نشد"
 
+  log "نصب BIND9 (سرور DNS اختیاری برای Zone Editor)..."
+  if [[ "$PKG" == "apt" ]]; then
+    pkg_install bind9 bind9utils && svc_enable named || svc_enable bind9 || warn "BIND نصب نشد"
+  else
+    pkg_install bind bind-utils && svc_enable named || warn "BIND نصب نشد"
+  fi
+  mkdir -p /etc/bind/zones 2>/dev/null || true
+
   # نصب acme.sh — کاملاً اختیاری و با timeout تا روی شبکهٔ محدود (ایران) هنگ نکند.
   # برای رد کردن کامل: ICSD_SKIP_ACME=yes
   if [[ "${ICSD_SKIP_ACME:-no}" == "yes" ]]; then
@@ -207,7 +215,8 @@ for c in systemctl service nginx \
          crontab \
          fail2ban-client \
          mysql mysqldump psql createdb dropdb pg_dump \
-         git chown chmod mkdir tee \
+         git chown chmod mkdir tee rm \
+         named-checkzone named-checkconf rndc \
          certbot; do
   p="$(command -v "$c" 2>/dev/null || true)"
   [[ -n "$p" ]] && SUDO_CMDS+=("$p")

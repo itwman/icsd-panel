@@ -168,6 +168,30 @@ CREATE TABLE IF NOT EXISTS cron_jobs (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS dns_zones (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain      TEXT UNIQUE NOT NULL,
+    ns1         TEXT NOT NULL DEFAULT '',
+    ns2         TEXT NOT NULL DEFAULT '',
+    admin_email TEXT NOT NULL DEFAULT '',
+    ttl         INTEGER NOT NULL DEFAULT 3600,
+    serial      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS dns_records (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    zone_id     INTEGER NOT NULL,
+    name        TEXT NOT NULL DEFAULT '@',
+    type        TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    ttl         INTEGER NOT NULL DEFAULT 3600,
+    priority    INTEGER,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (zone_id) REFERENCES dns_zones(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_dns_records_zone ON dns_records(zone_id);
+
 CREATE TABLE IF NOT EXISTS pyapps (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     name         TEXT UNIQUE NOT NULL,

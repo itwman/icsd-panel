@@ -46,6 +46,15 @@ class CompressIn(BaseModel):
     dest_dir: str
 
 
+class TransferIn(BaseModel):
+    paths: list[str]
+    dest_dir: str
+
+
+class PathsIn(BaseModel):
+    paths: list[str]
+
+
 def _guard(fn, *a, **k):
     try:
         return fn(*a, **k)
@@ -116,6 +125,21 @@ async def extract_archive(body: ExtractIn, user: dict = Depends(require_role("ma
 @router.post("/compress")
 async def compress_paths(body: CompressIn, user: dict = Depends(require_role("manager"))) -> dict:
     return _guard(fm.compress, body.paths, body.archive_name, body.dest_dir)
+
+
+@router.post("/copy")
+async def copy_paths(body: TransferIn, user: dict = Depends(require_role("manager"))) -> dict:
+    return _guard(fm.copy_items, body.paths, body.dest_dir)
+
+
+@router.post("/move")
+async def move_paths(body: TransferIn, user: dict = Depends(require_role("manager"))) -> dict:
+    return _guard(fm.move_items, body.paths, body.dest_dir)
+
+
+@router.post("/delete-many")
+async def delete_many(body: PathsIn, user: dict = Depends(require_role("manager"))) -> dict:
+    return _guard(fm.delete_items, body.paths)
 
 
 @router.post("/upload")

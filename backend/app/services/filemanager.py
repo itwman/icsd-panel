@@ -180,6 +180,78 @@ def delete(path: str) -> dict:
     return {"path": str(p), "deleted": True}
 
 
+def _unique_target(dest_dir: Path, name: str) -> Path:
+    """Avoid clobbering: if name exists in dest_dir, append -copy / -copyN."""
+    target = dest_dir / name
+    if not target.exists():
+        return target
+    stem = target.stem
+    suffix = "".join(target.suffixes)
+    base = name[:-len(suffix)] if suffix else name
+    i = 1
+    while True:
+        cand = dest_dir / (f"{base}-copy{'' if i == 1 else i}{suffix}")
+        if not cand.exists():
+            return cand
+        i += 1
+
+
+def copy_items(paths: list[str], dest_dir: str) -> dict:
+    """Copy files/folders into dest_dir (never overwrites; auto-renames)."""
+    dst = _resolve(dest_dir)
+    if not dst.is_dir():
+        raise FileError("مقصد یک پوشه نیست / destination not a directory")
+    done = 0
+    for raw in paths:
+        src = _resolve(raw)
+        if not src.exists():
+            continue
+        target = _unique_target(dst, src.name)
+        if src.is_dir():
+            if str(dst.resolve()).startswith(str(src.resolve())):
+                raise FileError("نمی‌توان پوشه را داخل خودش کپی کرد / cannot copy a folder into itself")
+            shutil.copytree(src, target)
+        else:
+            shutil.copy2(src, target)
+        done += 1
+    db.audit(None, "files.copy", f"{done} -> {dst}")
+    return {"copied": done, "dest": str(dst)}
+
+
+def move_items(paths: list[str], dest_dir: str) -> dict:
+    """Move files/folders into dest_dir."""
+    dst = _resolve(dest_dir)
+    if not dst.is_dir():
+        raise FileError("مقصد یک پوشه نیست / destination not a directory")
+    done = 0
+    for raw in paths:
+        src = _resolve(raw)
+        if not src.exists():
+            continue
+        for r in ALLOWED_ROOTS:
+            if src == r.resolve(strict=False):
+                raise FileError("جابجایی مسیر پایه مجاز نیست / cannot move a base root")
+        target = _unique_target(dst, src.name)
+        if src.is_dir() and str(dst.resolve()).startswith(str(src.resolve())):
+            raise FileError("نمی‌توان پوشه را داخل خودش منتقل کرد / cannot move a folder into itself")
+        shutil.move(str(src), str(target))
+        done += 1
+    db.audit(None, "files.move", f"{done} -> {dst}")
+    return {"moved": done, "dest": str(dst)}
+
+
+def delete_items(paths: list[str]) -> dict:
+    """Delete multiple files/folders."""
+    done = 0
+    for raw in paths:
+        try:
+            delete(raw)
+            done += 1
+        except FileError:
+            continue
+    return {"deleted": done}
+
+
 def rename(path: str, new_name: str) -> dict:
     p = _resolve(path)
     if not p.exists():
