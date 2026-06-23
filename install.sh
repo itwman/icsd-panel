@@ -124,13 +124,22 @@ if [[ "$INSTALL_STACK" == "full" ]]; then
   log "نصب fail2ban (محافظت برابر بروت‌فورس)..."
   pkg_install fail2ban && svc_enable fail2ban || warn "fail2ban نصب نشد"
 
-  log "نصب acme.sh (گواهی SSL لتس‌انکریپت)..."
-  if [[ ! -d /root/.acme.sh ]]; then
-    if curl -fsSL https://get.acme.sh -o /tmp/acme_install.sh 2>/dev/null; then
-      sh /tmp/acme_install.sh -m "admin@localhost" >/dev/null 2>&1 || warn "نصب acme.sh ناموفق بود (شبکه؟)"
+  # نصب acme.sh — کاملاً اختیاری و با timeout تا روی شبکهٔ محدود (ایران) هنگ نکند.
+  # برای رد کردن کامل: ICSD_SKIP_ACME=yes
+  if [[ "${ICSD_SKIP_ACME:-no}" == "yes" ]]; then
+    warn "نصب acme.sh رد شد (ICSD_SKIP_ACME=yes). بعداً می‌توانید دستی نصب کنید."
+  elif [[ -d /root/.acme.sh ]]; then
+    log "acme.sh از قبل نصب است — رد شد."
+  else
+    log "نصب acme.sh (گواهی SSL لتس‌انکریپت)... (در صورت کندی شبکه پس از ~۴۵ ثانیه رد می‌شود)"
+    if timeout 25 curl -fsSL --connect-timeout 12 https://get.acme.sh -o /tmp/acme_install.sh 2>/dev/null; then
+      timeout 60 sh /tmp/acme_install.sh -m "admin@localhost" >/dev/null 2>&1 \
+        && log "acme.sh نصب شد." \
+        || warn "نصب acme.sh ناتمام ماند (شبکه؟). از این مرحله عبور شد — بعداً دستی نصب کنید."
       rm -f /tmp/acme_install.sh
     else
-      warn "دانلود acme.sh ناموفق — در شبکهٔ محدود، بعداً دستی نصب کنید."
+      warn "دانلود acme.sh ناموفق/کند بود — از این مرحله عبور شد. بعداً دستی نصب کنید:"
+      warn "  curl https://get.acme.sh | sh   (یا از طریق یک پروکسی/میرور)"
     fi
   fi
 

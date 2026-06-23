@@ -71,7 +71,7 @@ async def health() -> dict:
 _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 
-@app.get("/")
+@app.get("/", response_model=None)
 async def index() -> FileResponse | JSONResponse:
     page = _FRONTEND_DIR / "index.html"
     if page.exists():
