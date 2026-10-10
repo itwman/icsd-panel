@@ -1,0 +1,50 @@
+# ICSD Panel hub.
+#
+# A) Server without a web server on 80/443 (recommended):
+#      docker compose --profile caddy up -d --build
+#    Caddy gets the SSL certificate for ICSD_DOMAIN automatically.
+#
+# B) Server that already runs a reverse proxy on 80/443:
+#      docker compose up -d --build
+#    The hub listens on 127.0.0.1:8088 only; point your proxy at it
+#    (see docs/INSTALL.md).
+name: icsd
+
+services:
+  hub:
+    build:
+      context: ..
+    image: icsd-panel:2.0.0
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - hub-data:/data
+    ports:
+      - "127.0.0.1:8088:8088"
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    profiles: ["caddy"]
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on: [hub]
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  hub-data:
+  caddy-data:
+  caddy-config:

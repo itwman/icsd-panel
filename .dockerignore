@@ -1,0 +1,8 @@
+.git
+legacy
+**/__pycache__
+**/*.pyc
+hub/tests
+hub/data
+deploy/.env
+*.db

@@ -1,0 +1,7 @@
+# ICSD Panel hub — pinned, small on purpose.
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+websockets==13.1
+bcrypt==4.2.1
+httpx==0.28.1
+segno==1.6.1          # QR code for 2FA setup (pure Python, no Pillow)

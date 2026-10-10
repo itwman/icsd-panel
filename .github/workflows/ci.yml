@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: agent } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: build
+        run: |
+          for a in amd64 arm64; do
+            CGO_ENABLED=0 GOARCH=$a go build -trimpath -ldflags "-s -w -X main.Version=2.0.0" -o ../dist/icsd-agent-linux-$a .
+          done
+      - uses: actions/upload-artifact@v4
+        with: { name: icsd-agent, path: dist/ }
+
+  hub:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: hub } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n deploy/install-hub.sh && bash -n hub/icsd_hub/install-agent.sh
+      - run: shellcheck -S error deploy/install-hub.sh hub/icsd_hub/install-agent.sh
+
+  image:
+    runs-on: ubuntu-latest
+    needs: [agent, hub]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t icsd-panel:ci .

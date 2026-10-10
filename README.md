@@ -1,93 +1,73 @@
 <div align="center">
 
-# 🟢 ICSD Panel
+<img src="hub/icsd_hub/web/assets/logo.svg" width="64" alt="" />
 
-**پنل متن‌باز مدیریت سرور لینوکس — رایگان، فارسی/انگلیسی، ساختهٔ شرکت توسعه هوشمند فرش ایرانیان**
+# پنل ICSD — نسخهٔ ۲
 
-**Open-source Linux server management panel — Free, Persian/English, by Iranian Carpet Smart Development (ICSD)**
+**مدیریت یکپارچهٔ چند سرور لینوکسی از یک پنل؛ فارسی، سبک، امن**
 
-[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-![Status](https://img.shields.io/badge/status-alpha-orange)
-![Python](https://img.shields.io/badge/Python-3.10%2B-green)
+ساختهٔ شرکت توسعه هوشمند فرش ایرانیان (ICSD) · مجوز GPLv3
 
 </div>
 
 ---
 
-## 🇮🇷 فارسی
+## این پنل چه می‌کند
 
-### معرفی
-**ICSD Panel** یک پنل وب مدرن و رایگان برای مدیریت کامل سرورهای لینوکسی است؛ با تمرکز ویژه بر نیازها و محدودیت‌های شبکه‌ای کاربران ایرانی. جایگزینی متن‌باز برای cPanel و Plesk، بدون قابلیت‌های پولی پنهان.
+یک **پنل مرکزی (hub)** روی یکی از سرورها نصب می‌شود. روی هر سرور دیگر (و خود همان سرور) یک **agent** کوچک
+(یک فایل اجرایی ۶ مگابایتی، حدود ۱۵ مگابایت RAM) نصب می‌شود که خودش به پنل وصل می‌شود.
 
-### قابلیت‌ها (نقشهٔ راه)
-- 📊 **داشبورد مانیتورینگ زنده** — CPU، RAM، دیسک، پهنای باند و وضعیت سرویس‌ها به‌صورت Real-time *(در دسترس در فاز ۰)*
-- 🌐 **مدیریت سایت و دامنه** — ساخت وب‌سایت، تولید خودکار کانفیگ Nginx/Apache
-- 🔒 **SSL لتس‌انکریپت** — صدور و تمدید خودکار با راهکار مقاوم در برابر محدودیت‌های ایران (DNS-01 + چند CA)
-- 🗄️ **دیتابیس و بک‌آپ** — مدیریت MySQL/MariaDB و بک‌آپ خودکار روی هاست دیگر از طریق FTP/SFTP
-- 🇮🇷 **ساختهٔ ایران** — رابط کامل RTL فارسی، تقویم شمسی، نصب‌کنندهٔ آگاه از میرورهای داخلی، اعلان تلگرام/بله/پیامک
+**فاز ۱ (این نسخه): مانیتورینگ و هشدار**
 
-### نصب سریع
+- داشبورد همهٔ سرورها: CPU، RAM، دیسک، شبکه، بار، مدت روشن بودن، نمودار نیم ساعت اخیر
+- صفحهٔ هر سرور: نمودار از ۱ ساعت تا ۱ سال، دیسک‌ها و inodeها، **کانتینرهای Docker** (وضعیت، سلامت، CPU، حافظه)، پرمصرف‌ترین پردازه‌ها، CPU steal
+- **پایش آدرس‌ها**: بالا بودن سایت، زمان پاسخ، خطای ۵xx و انقضای گواهی SSL
+- **هشدار در بله و تلگرام**: دیسک پر، RAM/CPU بالا، سرور قطع، کانتینر خراب، سایت از دسترس خارج، SSL رو به انقضا؛ هر هشدار یک بار و هر «رفع شد» یک بار
+- کاربران با نقش مدیر/مشاهده‌گر، رمز دوم اجباری، گزارش فعالیت
+
+**فازهای بعد:** فایل منیجر، کنترل Docker و سرویس‌ها، ترمینال وب (فاز ۲) · بک‌آپ زمان‌بندی‌شدهٔ دیتابیس و فایل‌ها به سرور دیگر (فاز ۳) · مدیریت دامنه و SSL (فاز ۴).
+سرور ایمیل عمداً در برنامه نیست؛ دلیلش در [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) آمده است.
+
+## نصب
+
+راهنمای قدم‌به‌قدم: **[docs/INSTALL.md](docs/INSTALL.md)**
+
+خلاصه، روی سرور پنل (بدون Docker، کنار سایت‌های موجود؛ nginx و certbot خودکار):
+
 ```bash
-git clone https://github.com/ICSD/ICSDPanel.git
-cd ICSDPanel
-sudo bash install.sh
+cd /opt && git clone https://github.com/itwman/icsd-panel.git && cd icsd-panel
+sudo bash deploy/install-hub.sh --domain panel.icsd.ir --email you@example.com
+sudo icsd-hub create-admin
 ```
-سپس پنل را در آدرس `http://<IP-سرور>:8088` باز کنید.
 
-### سیستم‌عامل‌های پشتیبانی‌شده
-| توزیع | وضعیت |
+سپس در پنل «افزودن سرور» را بزنید و دستوری را که می‌دهد روی هر سرور اجرا کنید.
+
+## ساختار مخزن
+
+| مسیر | چیست |
 |---|---|
-| Ubuntu 22.04 / 24.04 LTS | ✅ |
-| Debian 12 | ✅ |
-| AlmaLinux 9 | ✅ |
-| Rocky Linux 9 | ✅ |
-| CentOS Stream 9 | ⚠️ با احتیاط |
-| CentOS Linux 7/8 | ❌ EOL — مهاجرت کنید |
+| `agent/` | agent به زبان Go، بدون cgo و بدون وابستگی جز WebSocket (vendored) |
+| `hub/` | پنل مرکزی: FastAPI + SQLite، رابط کاربری Preact بدون مرحلهٔ build و بدون CDN |
+| `deploy/` | `install-hub.sh` (نصب بدون Docker با systemd و nginx)، و برای سرورهای Docker: Compose و Caddy |
+| `docs/` | معماری و راهنمای نصب |
+| `legacy/v1/` | کد نسخهٔ ۱ برای مرجع؛ نگه‌داری نمی‌شود |
 
-> ⚠️ **CentOS Linux** در ژوئن ۲۰۲۴ به پایان عمر رسیده. به **AlmaLinux 9** یا **Rocky Linux 9** مهاجرت کنید.
+## توسعه
 
-### اجرای محیط توسعه
 ```bash
-cd backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8088
-# داشبورد:  http://localhost:8088    |    مستندات API:  http://localhost:8088/docs
+# agent
+cd agent && go test -race ./... && go run . collect
+
+# hub
+cd hub && pip install -r requirements-dev.txt && python -m pytest -q
+ICSD_DATA_DIR=./data uvicorn icsd_hub.main:app --port 8088
 ```
 
 ---
 
-## 🇬🇧 English
+## English
 
-### Overview
-**ICSD Panel** is a modern, free, open-source web panel for full Linux server management, purpose-built for the needs and network constraints of Iranian users. A genuine cPanel/Plesk alternative with no hidden paid features.
-
-### Features (roadmap)
-- 📊 **Live monitoring dashboard** — real-time CPU, RAM, disk, bandwidth, services *(available in Phase 0)*
-- 🌐 **Site & domain management** — websites with auto-generated Nginx/Apache configs
-- 🔒 **Let's Encrypt SSL** — auto issue/renew with Iran-resilient strategy (DNS-01 + multi-CA fallback)
-- 🗄️ **Databases & backups** — MySQL/MariaDB management and scheduled FTP/SFTP backups to a remote host
-- 🇮🇷 **Built for Iran** — full Persian RTL UI, Jalali calendar, mirror-aware installer, Telegram/Bale/SMS alerts
-
-### Quick install
-```bash
-git clone https://github.com/ICSD/ICSDPanel.git
-cd ICSDPanel
-sudo bash install.sh
-```
-Then open `http://<server-ip>:8088`.
-
-### Supported OS
-Ubuntu 22.04/24.04, Debian 12, AlmaLinux 9, Rocky Linux 9. CentOS Stream 9 with caution; **CentOS Linux 7/8 are EOL — migrate to AlmaLinux/Rocky.**
-
-### Architecture
-A privilege-separated design: an unprivileged FastAPI web layer talks to a privileged system agent over a local socket. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical design, competitor analysis, and roadmap.
-
----
-
-## 🤝 مشارکت / Contributing
-این پروژه متن‌باز است و از مشارکت جامعهٔ ایرانی استقبال می‌کند. Issue و Pull Request بفرستید.
-This is an open-source project welcoming contributions. Please open issues and pull requests.
-
-## 📄 مجوز / License
-GPLv3 — see [LICENSE](LICENSE). © Iranian Carpet Smart Development (ICSD).
+**ICSD Panel v2** — one hub, many Linux servers. A tiny Go agent on each server dials out to the hub over
+HTTPS/WebSocket (no inbound port), the hub (FastAPI + SQLite) stores per-minute and per-hour history, evaluates
+alert rules and notifies Telegram/Bale. Phase 1 is read-only monitoring: hosts, disks, Docker containers,
+processes, URL/SSL checks. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/INSTALL.md](docs/INSTALL.md).

@@ -1,29 +1,31 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
 .venv/
 venv/
-env/
+.pytest_cache/
 
-# Env & secrets
-.env
+# Data & secrets
+deploy/.env
 *.env
-backend/.env
-
-# Database
+!deploy/.env.example
 *.db
-*.sqlite3
+*.db-wal
+*.db-shm
+hub/data/
+hub/dist/
 
-# Logs
-*.log
+# Build output
+agent/icsd-agent
+dist/
 
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
 *.swp
-
-# Node (future Vue frontend)
 node_modules/
-dist/
+
+# temporary transfer files
+_*.zip
+_*.tar.gz
