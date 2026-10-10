@@ -90,6 +90,9 @@ class Live:
     acc_cpu_max: float = 0.0
     acc_n: int = 0
     seen_written: float = 0.0
+    caps: dict = field(default_factory=dict)      # what this server allows (from its policy)
+    pending: dict = field(default_factory=dict)   # request id -> Future
+    send_lock: Any = None                          # asyncio.Lock, created on first use
 
     @property
     def connected(self) -> bool:

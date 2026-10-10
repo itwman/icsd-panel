@@ -4,7 +4,8 @@ import { Login, Setup2FA } from "./auth.js";
 import { Dashboard } from "./dashboard.js";
 import { AlertsPage, ChecksPage, SettingsPage } from "./pages.js";
 import { ServerPage } from "./server.js";
-import { Icon, api, events, fa, load, save, usePoll } from "./lib.js";
+import { BackupsPage, DomainsPage } from "./backups.js";
+import { Dialog, Icon, api, events, fa, load, save, usePoll } from "./lib.js";
 
 function useHash() {
   const [hash, setHash] = useState(location.hash || "#/");
@@ -42,12 +43,15 @@ function Shell({ me, onLogout, onMe }) {
     ["", "grid", "داشبورد"],
     ["alerts", "bell", "هشدارها"],
     ["checks", "globe", "پایش آدرس‌ها"],
+    ...(me.role === "admin" ? [["backups", "archive", "بک‌آپ‌ها"], ["domains", "lock", "دامنه‌ها و SSL"]] : []),
     ["settings", "gear", "تنظیمات"],
   ];
   let body;
   if (page === "server" && parts[1]) body = html`<${ServerPage} id=${parts[1]} me=${me} theme=${theme} key=${parts[1]} />`;
   else if (page === "alerts") body = html`<${AlertsPage} me=${me} />`;
   else if (page === "checks") body = html`<${ChecksPage} me=${me} theme=${theme} />`;
+  else if (page === "backups" && me.role === "admin") body = html`<${BackupsPage} me=${me} />`;
+  else if (page === "domains" && me.role === "admin") body = html`<${DomainsPage} />`;
   else if (page === "settings") body = html`<${SettingsPage} me=${me} onMe=${onMe} />`;
   else body = html`<${Dashboard} me=${me} />`;
 
@@ -68,7 +72,39 @@ function Shell({ me, onLogout, onMe }) {
       </div>
     </aside>
     <main class="main">${body}</main>
+    <${Elevation} />
   </div>`;
+}
+
+// The 2FA re-confirmation asked for before dangerous actions.
+function Elevation() {
+  const [req, setReq] = useState(null);
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const on = (e) => { setReq(e.detail); setCode(""); setErr(""); };
+    events.addEventListener("elevate", on);
+    return () => events.removeEventListener("elevate", on);
+  }, []);
+  if (!req) return null;
+  const close = (ok) => { req.resolve(ok); setReq(null); };
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api("/auth/elevate", { method: "POST", body: { code } });
+      close(true);
+    } catch (ex) { setErr(ex.message); } finally { setBusy(false); }
+  };
+  return html`<${Dialog} title="تأیید با رمز دوم" onClose=${() => close(false)}>
+    <form class="form" onSubmit=${submit}>
+      <div class="note">این کار روی سرور تغییر ایجاد می‌کند. کد ۶ رقمی برنامهٔ Authenticator را وارد کنید؛ تا ۱۵ دقیقه دوباره پرسیده نمی‌شود.</div>
+      <input class="ltr mono" inputmode="numeric" maxlength="6" autofocus value=${code} onInput=${(e) => setCode(e.target.value)}
+        style="font-size:20px;letter-spacing:6px;text-align:center" />
+      ${err && html`<div class="error">${err}</div>`}
+      <button class="primary" disabled=${busy}>تأیید</button>
+    </form><//>`;
 }
 
 function App() {

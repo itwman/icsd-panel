@@ -5,3 +5,5 @@ websockets==13.1
 bcrypt==4.2.1
 httpx==0.28.1
 segno==1.6.1          # QR code for 2FA setup (pure Python, no Pillow)
+dnspython==2.7.0     # DNS checks for domains (A records, MX, SPF, DMARC)
+python-multipart==0.0.20  # file uploads (file manager)

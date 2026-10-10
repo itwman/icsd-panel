@@ -199,7 +199,7 @@ NGINX_SNIPPET="server {
     listen 80;$LISTEN6
     server_name $DOMAIN;
 
-    client_max_body_size 2m;
+    client_max_body_size 600m;   # file uploads from the file manager
 
     location / {
         proxy_pass http://127.0.0.1:$PORT;
@@ -209,9 +209,26 @@ NGINX_SNIPPET="server {
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 120s;
+        proxy_read_timeout 600s;
+        proxy_request_buffering off;
     }
 }"
+
+if [[ $MODE == upgrade ]]; then
+  # v2.1: uploads up to 512 MB and long downloads through the panel.
+  for f in /etc/nginx/sites-available/icsd-panel.conf /etc/nginx/conf.d/icsd-panel.conf; do
+    [[ -f $f ]] || continue
+    if grep -q "client_max_body_size 2m;" "$f"; then
+      cp "$f" "$f.bak"
+      sed -i 's/client_max_body_size 2m;/client_max_body_size 600m;/; s/proxy_read_timeout 120s;/proxy_read_timeout 600s;/' "$f"
+      if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx; rm -f "$f.bak"; say "nginx: upload limit raised to 600 MB"
+      else
+        mv "$f.bak" "$f"; warn "nginx rejected the change; left as it was"
+      fi
+    fi
+  done
+fi
 
 if [[ $MODE == install ]]; then
   if [[ $NGINX == 1 ]] && command -v nginx >/dev/null; then

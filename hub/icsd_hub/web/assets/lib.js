@@ -4,9 +4,24 @@ import { html, useEffect, useRef, useState } from "./vendor/preact-htm.js";
 // ── API ──────────────────────────────────────────────────────────────
 export const events = new EventTarget(); // "unauthorized", "need2fa"
 
-export async function api(path, { method = "GET", body } = {}) {
+// Dangerous actions need a fresh 2FA code (valid 15 minutes). When the hub
+// answers "elevation_required", the app shows a code dialog and the request
+// is retried once.
+let elevating = null;
+export function requestElevation() {
+  if (!elevating) {
+    elevating = new Promise((resolve) => {
+      events.dispatchEvent(new CustomEvent("elevate", { detail: { resolve } }));
+    }).finally(() => { elevating = null; });
+  }
+  return elevating;
+}
+
+export async function api(path, { method = "GET", body, form, retried = false } = {}) {
   const opts = { method, credentials: "same-origin", headers: { "X-ICSD": "1" } };
-  if (body !== undefined) {
+  if (form !== undefined) {
+    opts.body = form;
+  } else if (body !== undefined) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
@@ -22,6 +37,12 @@ export async function api(path, { method = "GET", body } = {}) {
   const detail = data && data.detail;
   if (res.status === 401 && !path.startsWith("/auth/login")) events.dispatchEvent(new Event("unauthorized"));
   if (res.status === 403 && detail === "2fa_setup_required") events.dispatchEvent(new Event("need2fa"));
+  if (res.status === 403 && detail === "elevation_required" && !retried) {
+    if (await requestElevation()) return api(path, { method, body, form, retried: true });
+    const err = new Error("تأیید با رمز دوم لغو شد");
+    err.status = 403;
+    throw err;
+  }
   const err = new Error(typeof detail === "string" ? detail : (detail && detail.message) || `خطای ${res.status}`);
   err.status = res.status;
   err.data = detail;
@@ -146,6 +167,21 @@ const P = {
   back: "M9 18l6-6-6-6",
   edit: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
   key: "M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.8 7.8 5.5 5.5 0 0 1 7.8-7.8zM15.5 7.5l3 3L22 7l-3-3",
+  folder: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+  file: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
+  up: "M12 19V5M5 12l7-7 7 7",
+  down: "M12 5v14M5 12l7 7 7-7",
+  upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
+  refresh: "M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15",
+  db: "M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6",
+  lock: "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4",
+  term: "M4 17l6-6-6-6M12 19h8",
+  play: "M6 4l14 8-14 8z",
+  stop: "M6 6h12v12H6z",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  archive: "M21 8v13H3V8M1 3h22v5H1zM10 12h4",
+  save: "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8",
+  cog: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
 };
 export const Icon = ({ name, cls = "" }) => html`<svg class=${"icon " + cls} viewBox="0 0 24 24" fill="none"
   stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -216,3 +252,44 @@ export function useAction() {
   };
   return [busy, run];
 }
+
+// Follow a background job on a server until it ends.
+export function useJob(sid, jobId, onDone) {
+  const [job, setJob] = useState(null);
+  useEffect(() => {
+    if (!jobId) return;
+    let stop = false;
+    const poll = async () => {
+      try {
+        const j = await api(`/servers/${sid}/jobs/${jobId}`);
+        if (stop) return;
+        setJob(j);
+        if (j.state !== "running") { onDone && onDone(j); return; }
+      } catch (e) {
+        if (stop) return;
+        setJob({ state: "error", error: e.message });
+        return;
+      }
+      setTimeout(poll, 1500);
+    };
+    poll();
+    return () => { stop = true; };
+  }, [sid, jobId]);
+  return job;
+}
+
+export function JobBox({ sid, jobId, title, onDone }) {
+  const job = useJob(sid, jobId, onDone);
+  if (!jobId) return null;
+  const st = !job ? "running" : job.state;
+  return html`<div class="job">
+    <div class="row"><${Pill} s=${st === "done" ? "ok" : st === "error" ? "crit" : "pending"}
+      label=${st === "done" ? "انجام شد" : st === "error" ? "ناموفق" : "در حال انجام…"} />
+      <b class="grow">${title || (job && job.title) || ""}</b>
+      ${job && job.ended ? html`<span class="faint small">${dur(job.ended - job.started)}</span>` : null}</div>
+    ${job && job.error && html`<div class="error" style="margin-top:8px">${job.error}</div>`}
+    ${job && job.log && html`<pre class="logbox">${job.log}</pre>`}
+  </div>`;
+}
+
+export const LogLines = ({ lines }) => html`<pre class="logbox tall">${(lines || []).join("\n") || "—"}</pre>`;

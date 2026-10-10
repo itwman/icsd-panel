@@ -50,6 +50,7 @@ async def logout(request: Request, response: Response) -> dict:
 
 def _me(user: User) -> dict:
     return {"username": user.username, "role": user.role, "totp_on": user.totp_on,
+            "elevated_until": user.elevated_until,
             "must_setup_2fa": config.settings.require_2fa and not user.totp_on,
             "version": __version__}
 
@@ -88,6 +89,16 @@ async def twofa_confirm(body: CodeIn, request: Request, user: User = Depends(aut
     db.audit(user.username, "2fa.enable", "", auth.client_ip(request))
     user.totp_on = True
     return _me(user)
+
+
+@router.post("/auth/elevate")
+async def elevate(body: CodeIn, request: Request, user: User = Depends(auth.admin)) -> dict:
+    try:
+        until = auth.elevate(user, body.code)
+    except auth.AuthError as e:
+        raise _err(e) from None
+    db.audit(user.username, "elevate", "", auth.client_ip(request))
+    return {"until": until}
 
 
 class PasswordIn(BaseModel):
@@ -159,6 +170,7 @@ async def server_detail(sid: str, user: User = Depends(auth.current_user)) -> di
     lv = live.peek(sid)
     return {"server": _summary(row, time.time()), "notes": row["notes"], "created": row["created"],
             "last": lv.last if lv else {}, "agent_latest": _latest_agent(),
+            "caps": (lv.caps if lv else {}) or {},
             "events": db.q("SELECT * FROM events WHERE server_id=? ORDER BY started DESC LIMIT 30", (sid,))}
 
 
@@ -173,7 +185,7 @@ class ServerIn(BaseModel):
 
 
 @router.post("/servers")
-async def add_server(body: ServerIn, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def add_server(body: ServerIn, request: Request, user: User = Depends(auth.elevated)) -> dict:
     srv, tok = agents.create_server(body.name)
     db.audit(user.username, "server.add", f"{srv['id']} {srv['name']}", auth.client_ip(request))
     return {"server": srv, "command": agents.install_command(agents.base_url(request), tok),
@@ -196,7 +208,7 @@ async def edit_server(sid: str, body: ServerPatch, user: User = Depends(auth.adm
 
 
 @router.post("/servers/{sid}/enroll")
-async def reenroll(sid: str, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def reenroll(sid: str, request: Request, user: User = Depends(auth.elevated)) -> dict:
     tok = agents.new_enroll_token(sid)
     db.audit(user.username, "server.token", sid, auth.client_ip(request))
     return {"command": agents.install_command(agents.base_url(request), tok),
@@ -204,7 +216,7 @@ async def reenroll(sid: str, request: Request, user: User = Depends(auth.admin))
 
 
 @router.delete("/servers/{sid}")
-async def remove_server(sid: str, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def remove_server(sid: str, request: Request, user: User = Depends(auth.elevated)) -> dict:
     row = agents.server_row(sid)
     await agents.delete_server(sid)
     db.audit(user.username, "server.delete", f"{sid} {row['name']}", auth.client_ip(request))
@@ -227,7 +239,7 @@ class RuleIn(BaseModel):
 
 
 @router.put("/rules/{kind}")
-async def edit_rule(kind: str, body: RuleIn, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def edit_rule(kind: str, body: RuleIn, request: Request, user: User = Depends(auth.elevated)) -> dict:
     try:
         alerts.update_rule(kind, body.threshold, body.for_s, body.severity, body.enabled)
     except ValueError as e:
@@ -249,7 +261,7 @@ async def check_log(cid: int, hours: int = 24, user: User = Depends(auth.current
 
 
 @router.post("/checks")
-async def add_check(body: dict, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def add_check(body: dict, request: Request, user: User = Depends(auth.elevated)) -> dict:
     try:
         c = checks.validate(body)
     except (ValueError, TypeError) as e:
@@ -261,7 +273,7 @@ async def add_check(body: dict, request: Request, user: User = Depends(auth.admi
 
 
 @router.put("/checks/{cid}")
-async def edit_check(cid: int, body: dict, user: User = Depends(auth.admin)) -> dict:
+async def edit_check(cid: int, body: dict, user: User = Depends(auth.elevated)) -> dict:
     if not db.one("SELECT 1 FROM checks WHERE id=?", (cid,)):
         raise HTTPException(404, "پیدا نشد")
     try:
@@ -275,7 +287,7 @@ async def edit_check(cid: int, body: dict, user: User = Depends(auth.admin)) -> 
 
 
 @router.delete("/checks/{cid}")
-async def remove_check(cid: int, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def remove_check(cid: int, request: Request, user: User = Depends(auth.elevated)) -> dict:
     db.x("DELETE FROM checks WHERE id=?", (cid,))
     db.x("DELETE FROM check_log WHERE check_id=?", (cid,))
     checks.forget(cid)
@@ -291,7 +303,7 @@ async def get_notify(user: User = Depends(auth.admin)) -> dict:
 
 
 @router.put("/settings/notify")
-async def put_notify(body: dict, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def put_notify(body: dict, request: Request, user: User = Depends(auth.elevated)) -> dict:
     try:
         saved = notify.save(body)
     except ValueError as e:
@@ -322,7 +334,7 @@ class UserIn(BaseModel):
 
 
 @router.post("/users")
-async def add_user(body: UserIn, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def add_user(body: UserIn, request: Request, user: User = Depends(auth.elevated)) -> dict:
     try:
         u = auth.create_user(body.username, body.password, body.role)
     except auth.AuthError as e:
@@ -332,7 +344,7 @@ async def add_user(body: UserIn, request: Request, user: User = Depends(auth.adm
 
 
 @router.delete("/users/{uid}")
-async def remove_user(uid: int, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def remove_user(uid: int, request: Request, user: User = Depends(auth.elevated)) -> dict:
     if uid == user.id:
         raise HTTPException(400, "خودتان را نمی‌توانید حذف کنید")
     try:
@@ -344,7 +356,7 @@ async def remove_user(uid: int, request: Request, user: User = Depends(auth.admi
 
 
 @router.post("/users/{uid}/reset-2fa")
-async def user_reset_2fa(uid: int, request: Request, user: User = Depends(auth.admin)) -> dict:
+async def user_reset_2fa(uid: int, request: Request, user: User = Depends(auth.elevated)) -> dict:
     auth.reset_2fa(uid)
     db.audit(user.username, "user.reset_2fa", str(uid), auth.client_ip(request))
     return {"users": auth.list_users()}

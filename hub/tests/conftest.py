@@ -37,8 +37,9 @@ def make_admin(username="admin", password="correct-horse-1", role="admin"):
     return auth.create_user(username, password, role)
 
 
-def login_with_2fa(client, username="admin", password="correct-horse-1", role="admin"):
-    """A logged-in account that has finished 2FA setup."""
+def login_with_2fa(client, username="admin", password="correct-horse-1", role="admin", elevate=True):
+    """A logged-in account that has finished 2FA setup (and, for admins,
+    re-confirmed it so dangerous actions are allowed)."""
     from icsd_hub import db, security
     make_admin(username, password, role)
     r = client.post("/api/auth/login", json={"username": username, "password": password})
@@ -46,4 +47,8 @@ def login_with_2fa(client, username="admin", password="correct-horse-1", role="a
     secret = client.post("/api/auth/2fa/begin").json()["secret"]
     r = client.post("/api/auth/2fa/confirm", json={"code": security.totp_now(secret)})
     assert r.status_code == 200, r.text
+    if elevate and role == "admin":
+        import time
+        r = client.post("/api/auth/elevate", json={"code": security.totp_now(secret, time.time() + 30)})
+        assert r.status_code == 200, r.text
     return db.one("SELECT * FROM users WHERE username=?", (username,))

@@ -16,7 +16,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from icsd_hub import __version__, agents, alerts, api, auth, checks, config, db, live, metrics
+from icsd_hub import (__version__, agents, alerts, api, auth, backups, checks, config, db, domains,
+                      live, manage, metrics)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("icsd")
@@ -28,6 +29,9 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
        "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 
 
+_bg: set = set()
+
+
 async def _ticker() -> None:
     """Background chores. Each is cheap; none may kill the loop."""
     tick = 0
@@ -37,6 +41,11 @@ async def _ticker() -> None:
             try:
                 alerts.evaluate_offline()
                 await checks.run_due(client)
+                backups.tick()
+                if tick % 240 == 20:    # ~hourly, a few minutes after start
+                    t = asyncio.get_running_loop().create_task(domains.refresh_all())
+                    _bg.add(t)
+                    t.add_done_callback(_bg.discard)
                 if tick % 40 == 0:      # ~10 minutes
                     metrics.rollup()
                     auth.prune()
@@ -54,6 +63,7 @@ async def _ticker() -> None:
 async def lifespan(app: FastAPI):
     db.connect()
     alerts.seed()
+    backups.recover()
     if not db.one("SELECT 1 FROM users LIMIT 1"):
         log.warning("No users yet. Create the first admin:  docker compose exec hub icsd-hub create-admin")
     task = asyncio.create_task(_ticker())
@@ -80,6 +90,9 @@ def create_app() -> FastAPI:
 
     app.include_router(agents.router)
     app.include_router(api.router)
+    app.include_router(manage.router)
+    app.include_router(backups.router)
+    app.include_router(domains.router)
 
     @app.get("/healthz")
     async def healthz() -> dict:

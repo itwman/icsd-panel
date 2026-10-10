@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/itwman/icsd-panel/agent/internal/actions"
 	"github.com/itwman/icsd-panel/agent/internal/collect"
 	"github.com/itwman/icsd-panel/agent/internal/config"
 	"github.com/itwman/icsd-panel/agent/internal/link"
@@ -96,15 +97,26 @@ func enroll(args []string) {
 func run(args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	path := fs.String("config", config.DefaultPath, "identity file")
+	policy := fs.String("policy", actions.DefaultPolicyPath, "what this server allows the panel to do")
 	_ = fs.Parse(args)
 	cfg, err := config.Load(*path)
 	if err != nil {
 		log.Fatal(err)
 	}
+	col := collector(cfg)
+	runner, err := actions.New(*policy, col.DockerSock)
+	if err != nil {
+		log.Printf("management disabled (%v) — monitoring only", err)
+		runner = nil
+	} else {
+		log.Printf("management enabled by %s", *policy)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	log.Printf("icsd-agent %s → %s (server %s, every %ds)", Version, cfg.Hub, cfg.ServerID, cfg.Interval)
-	link.New(cfg, collector(cfg), Version).Run(ctx)
+	ag := link.New(cfg, col, Version)
+	ag.Actions = runner
+	ag.Run(ctx)
 }
 
 func collectOnce() {

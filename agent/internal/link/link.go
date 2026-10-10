@@ -23,6 +23,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/itwman/icsd-panel/agent/internal/actions"
 	"github.com/itwman/icsd-panel/agent/internal/collect"
 	"github.com/itwman/icsd-panel/agent/internal/config"
 )
@@ -34,36 +35,43 @@ const CloseUnauthorized websocket.StatusCode = 4401
 const maxBuffered = 120 // ~10 minutes at 5s: brief outages leave no gap
 
 type Envelope struct {
-	T    string        `json:"t"`
-	V    string        `json:"v,omitempty"`
-	ID   string        `json:"id,omitempty"`
-	Host *collect.Host `json:"host,omitempty"`
-	D    any           `json:"d,omitempty"`
+	T     string         `json:"t"`
+	V     string         `json:"v,omitempty"`
+	ID    string         `json:"id,omitempty"`
+	Host  *collect.Host  `json:"host,omitempty"`
+	Caps  map[string]any `json:"caps,omitempty"`
+	D     any            `json:"d,omitempty"`
+	OK    bool           `json:"ok,omitempty"`
+	Error string         `json:"error,omitempty"`
 }
 
 type inbound struct {
-	T        string `json:"t"`
-	ID       string `json:"id"`
-	Op       string `json:"op"`
-	Interval int    `json:"interval"`
+	T        string          `json:"t"`
+	ID       string          `json:"id"`
+	Op       string          `json:"op"`
+	Args     json.RawMessage `json:"args"`
+	Interval int             `json:"interval"`
 }
 
 type Agent struct {
 	Cfg     *config.Config
 	Col     *collect.Collector
 	Version string
+	Actions *actions.Runner // nil: monitor-only
 
 	mu       sync.Mutex
 	queue    []collect.Sample
 	wake     chan struct{}
 	interval time.Duration
 	reset    chan time.Duration
+	slots    chan struct{}
 }
 
 func New(cfg *config.Config, col *collect.Collector, version string) *Agent {
 	return &Agent{
 		Cfg: cfg, Col: col, Version: version,
 		wake:     make(chan struct{}, 1),
+		slots:    make(chan struct{}, 8),
 		reset:    make(chan time.Duration, 1),
 		interval: time.Duration(cfg.Interval) * time.Second,
 	}
@@ -170,13 +178,13 @@ func (a *Agent) session(ctx context.Context) error {
 		return err
 	}
 	defer conn.CloseNow()
-	conn.SetReadLimit(1 << 20)
+	conn.SetReadLimit(8 << 20) // file uploads arrive in chunks of up to 1 MB (base64)
 	log.Printf("connected to %s", a.Cfg.Hub)
 
 	sctx, stop := context.WithCancel(ctx)
 	defer stop()
 	host := a.Col.Host()
-	if err := a.send(sctx, conn, Envelope{T: "hello", V: a.Version, Host: &host}); err != nil {
+	if err := a.send(sctx, conn, Envelope{T: "hello", V: a.Version, Host: &host, Caps: a.Actions.Caps()}); err != nil {
 		return err
 	}
 
@@ -245,12 +253,35 @@ func (a *Agent) reader(ctx context.Context, conn *websocket.Conn) error {
 				}
 			}
 		case "req":
-			// Phase 1 is read-only: the agent accepts no commands at all.
-			// (Phase 2 adds an allow-list that lives in the agent's own
-			// config, so even a compromised hub cannot exceed it.)
-			_ = a.send(ctx, conn, Envelope{T: "res", ID: in.ID, D: map[string]string{
-				"error": "unsupported operation: " + in.Op,
-			}})
+			// Each request runs on its own goroutine (a long dump must not
+			// block a file listing); at most 8 at a time.
+			select {
+			case a.slots <- struct{}{}:
+			default:
+				_ = a.send(ctx, conn, Envelope{T: "res", ID: in.ID, Error: "agent مشغول است؛ چند لحظه بعد"})
+				continue
+			}
+			go func(in inbound) {
+				defer func() { <-a.slots }()
+				rctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+				defer cancel()
+				var res Envelope
+				func() {
+					defer func() {
+						if p := recover(); p != nil {
+							res = Envelope{T: "res", ID: in.ID, Error: fmt.Sprintf("خطای داخلی agent: %v", p)}
+						}
+					}()
+					d, err := a.Actions.Handle(rctx, in.Op, in.Args)
+					res = Envelope{T: "res", ID: in.ID, D: d, OK: err == nil}
+					if err != nil {
+						res.Error = err.Error()
+					}
+				}()
+				if err := a.send(ctx, conn, res); err != nil {
+					log.Printf("reply %s: %v", in.Op, err)
+				}
+			}(in)
 		}
 	}
 }

@@ -127,6 +127,46 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN totp_pending TEXT;
     ALTER TABLE samples_1m ADD COLUMN n INTEGER NOT NULL DEFAULT 1;
     """,
+    # 3 — phases 2–4: re-confirmed sessions, backup plans and runs
+    """
+    ALTER TABLE sessions ADD COLUMN elevated_until INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE backup_plans (
+        id            INTEGER PRIMARY KEY,
+        server_id     TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+        name          TEXT NOT NULL,
+        kind          TEXT NOT NULL,                 -- db | files
+        target        TEXT NOT NULL,                 -- JSON
+        every_hours   INTEGER NOT NULL DEFAULT 24,
+        start_hour    INTEGER NOT NULL DEFAULT 3,    -- Tehran time
+        keep          INTEGER NOT NULL DEFAULT 7,
+        dest_server   TEXT,                          -- copy to this server (optional)
+        dest_keep     INTEGER NOT NULL DEFAULT 14,
+        delete_local  INTEGER NOT NULL DEFAULT 0,
+        enabled       INTEGER NOT NULL DEFAULT 1,
+        next_run      INTEGER,
+        created       INTEGER NOT NULL
+    );
+    CREATE TABLE backup_runs (
+        id          INTEGER PRIMARY KEY,
+        plan_id     INTEGER REFERENCES backup_plans(id) ON DELETE SET NULL,
+        server_id   TEXT NOT NULL,
+        started     INTEGER NOT NULL,
+        ended       INTEGER,
+        state       TEXT NOT NULL,                   -- running | done | error
+        size        INTEGER,
+        path        TEXT,
+        dest_server TEXT,
+        dest_path   TEXT,
+        error       TEXT NOT NULL DEFAULT '',
+        trigger     TEXT NOT NULL DEFAULT 'schedule'
+    );
+    CREATE INDEX backup_runs_started ON backup_runs(started);
+    """,
+    # 4 — every plan gets its own random file prefix (ids may be reused)
+    """
+    ALTER TABLE backup_plans ADD COLUMN prefix TEXT;
+    UPDATE backup_plans SET prefix = 'p' || id WHERE prefix IS NULL;
+    """,
 ]
 
 

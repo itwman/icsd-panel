@@ -30,7 +30,7 @@ function Rules({ rules, admin, onSaved }) {
     threshold: Number(val(r, "threshold")), for_s: Math.round(Number(val(r, "for_s"))),
     severity: val(r, "severity"), enabled: !!val(r, "enabled"),
   } }), "ذخیره شد").then(() => { setEdit({ ...edit, [r.kind]: undefined }); onSaved(); });
-  const noThreshold = ["container"];
+  const noThreshold = ["container", "backup"];
   return html`<div class="tbl-wrap"><table>
     <thead><tr><th>فعال</th><th>قاعده</th><th>آستانه</th><th>ماندگاری (ثانیه)</th><th>شدت</th><th></th></tr></thead>
     <tbody>${rules.map((r) => html`<tr>
@@ -39,7 +39,7 @@ function Rules({ rules, admin, onSaved }) {
       <td>${noThreshold.includes(r.kind) ? html`<span class="faint">—</span>` : html`<div class="row" style="flex-wrap:nowrap">
         <input type="number" step="any" style="width:90px" disabled=${!admin} value=${val(r, "threshold")}
           onInput=${(e) => set(r, "threshold", e.target.value)} /><span class="faint small nowrap">${r.unit}</span></div>`}</td>
-      <td>${r.kind === "offline" || r.kind === "check" || r.kind === "cert" ? html`<span class="faint">—</span>`
+      <td>${r.kind === "offline" || r.kind === "check" || r.kind === "cert" || r.kind === "backup" ? html`<span class="faint">—</span>`
         : html`<input type="number" min="0" style="width:90px" disabled=${!admin} value=${val(r, "for_s")}
           onInput=${(e) => set(r, "for_s", e.target.value)} />`}</td>
       <td><select style="width:auto" disabled=${!admin} value=${val(r, "severity")} onChange=${(e) => set(r, "severity", e.target.value)}>
@@ -236,10 +236,16 @@ function Audit() {
   const label = { login: "ورود", "login.fail": "ورود ناموفق", "server.add": "افزودن سرور", "server.delete": "حذف سرور",
     "server.token": "دستور نصب تازه", "agent.enroll": "نصب agent", "2fa.enable": "فعال‌سازی 2FA", "password.change": "تغییر رمز",
     "user.add": "افزودن کاربر", "user.delete": "حذف کاربر", "user.reset_2fa": "بازنشانی 2FA", "rule.edit": "ویرایش قاعده",
-    "check.add": "افزودن آدرس", "check.delete": "حذف آدرس", "notify.edit": "ویرایش اعلان‌ها" };
+    "check.add": "افزودن آدرس", "check.delete": "حذف آدرس", "notify.edit": "ویرایش اعلان‌ها",
+    elevate: "تأیید با رمز دوم", "fs.write": "ذخیرهٔ فایل", "fs.upload": "آپلود", "fs.delete": "حذف فایل", "fs.rename": "تغییر نام",
+    "fs.mkdir": "ساخت پوشه", "fs.chmod": "تغییر دسترسی", "fs.archive": "فشرده‌سازی", "fs.extract": "باز کردن آرشیو", "fs.download": "دانلود",
+    "svc.restart": "ری‌استارت سرویس", "svc.stop": "توقف سرویس", "svc.start": "شروع سرویس", "docker.restart": "ری‌استارت کانتینر",
+    "docker.stop": "توقف کانتینر", "docker.start": "شروع کانتینر", console: "کنسول", "db.dump": "بک‌آپ دیتابیس",
+    "db.restore": "بازگردانی دیتابیس", "ssl.renew": "تمدید SSL", "ssl.issue": "گرفتن SSL", "backup.plan.add": "برنامهٔ بک‌آپ",
+    "backup.plan.edit": "ویرایش برنامهٔ بک‌آپ", "backup.plan.delete": "حذف برنامهٔ بک‌آپ", "backup.run": "اجرای بک‌آپ" };
   return html`<div class="card"><div class="tbl-wrap"><table>
     <thead><tr><th>زمان</th><th>کاربر</th><th>کار</th><th>جزئیات</th><th>IP</th></tr></thead>
     <tbody>${d.audit.map((a) => html`<tr><td class="small nowrap">${dt(a.ts)}</td><td class="ltr">${a.username || "—"}</td>
-      <td>${label[a.action] || a.action}</td><td class="small faint">${a.detail}</td><td class="ltr small faint">${a.ip}</td></tr>`)}</tbody>
+      <td>${label[a.action] || a.action}</td><td class="small faint ltr" style="text-align:right">${a.detail}</td><td class="ltr small faint">${a.ip}</td></tr>`)}</tbody>
   </table></div></div>`;
 }

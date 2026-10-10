@@ -8,7 +8,7 @@ from icsd_hub import alerts, checks, db, live, notify, security
 
 
 def test_replacing_active_2fa_needs_the_current_code(client):
-    u = login_with_2fa(client)
+    u = login_with_2fa(client, elevate=False)
     old_secret = u["totp_secret"]
     r = client.post("/api/auth/2fa/begin", json={})
     assert r.status_code == 400 and r.json()["detail"]["need_current"] is True

@@ -28,6 +28,7 @@ DEFAULT_RULES: dict[str, tuple[float, int, str, str, str]] = {
     "container": (0,   60,  "critical", "کانتینر از کار افتاده", ""),
     "check":     (2,   0,   "critical", "آدرس پاسخ نمی‌دهد", "شکستِ پیاپی"),
     "cert":      (14,  0,   "warning",  "گواهی SSL نزدیک انقضا", "روز"),
+    "backup":    (1,   0,   "critical", "بک‌آپ ناموفق", ""),
 }
 SERVER_KINDS = ("cpu", "mem", "disk", "disk_full", "inodes", "load", "steal", "container")
 STARTUP_GRACE = 90
@@ -139,6 +140,12 @@ def settle(kinds: tuple[str, ...], server_id: str, seen: set[tuple[str, str]], n
     """Subjects that vanished (container removed, disk unmounted) are resolved."""
     for key in [k for k in _state if k[0] in kinds and k[1] == server_id and (k[0], k[2]) not in seen]:
         step(key[0], server_id, key[2], False, 0, "", now)
+
+
+def forget_subject(kind: str, subject: str) -> None:
+    """Close events of a deleted thing (a backup plan…) without notifying."""
+    for key in [k for k in _state if k[0] == kind and k[2] == subject]:
+        step(kind, key[1], subject, False, 0, "", quiet=True)
 
 
 def forget_server(server_id: str) -> None:

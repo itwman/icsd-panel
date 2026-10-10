@@ -2,6 +2,7 @@
 import { html, useState } from "./vendor/preact-htm.js";
 import { Chart } from "./chart.js";
 import { AlertList, InstallSteps } from "./dashboard.js";
+import { ConsoleTab, ContainerActions, DatabasesTab, FilesTab, MonitorOnlyNote, SSLTab, ServicesTab } from "./manage.js";
 import {
   Bar, Dialog, Empty, Icon, Pill, ago, api, bytes, dt, dur, fa, load, pct, rate, save, useAction, usePoll,
 } from "./lib.js";
@@ -19,6 +20,7 @@ export function ServerPage({ id, me, theme }) {
   if (!d) return html`<div class="skeleton">در حال بارگذاری…</div>`;
   const s = d.server, h = s.host || {}, last = d.last || {};
   const pick = (r) => { setRange(r); save("icsd.range", r); };
+  const manage = me.role === "admin" && d.caps && d.caps.mode === "manage";
   const outdated = d.agent_latest && s.agent_version && s.agent_version !== d.agent_latest;
 
   return html`
@@ -48,8 +50,7 @@ export function ServerPage({ id, me, theme }) {
     </div>
 
     <div class="tabs">
-      ${[["charts", "نمودارها"], ["disks", "دیسک‌ها"], ["containers", "کانتینرها"], ["procs", "پردازه‌ها"],
-         ["events", "رویدادها"], ["info", "مشخصات"]].map(([k, l]) =>
+      ${tabsFor(d.caps, me).map(([k, l]) =>
         html`<button class=${tab === k ? "on" : ""} onClick=${() => setTab(k)}>${l}${k === "containers" && last.containers
           ? " (" + fa(last.containers.length) + ")" : ""}</button>`)}
     </div>
@@ -72,7 +73,13 @@ export function ServerPage({ id, me, theme }) {
     </div>` : html`<div class="skeleton">در حال بارگذاری نمودارها…</div>`)}
 
     ${tab === "disks" && html`<${Disks} disks=${last.disks} />`}
-    ${tab === "containers" && html`<${Containers} list=${last.containers} err=${last.docker_err} />`}
+    ${tab === "containers" && html`<${Containers} list=${last.containers} err=${last.docker_err} sid=${id} manage=${manage && d.caps.docker} />`}
+    ${tab === "files" && html`<${FilesTab} sid=${id} caps=${d.caps} />`}
+    ${tab === "services" && html`<${ServicesTab} sid=${id} />`}
+    ${tab === "databases" && html`<${DatabasesTab} sid=${id} />`}
+    ${tab === "ssl" && html`<${SSLTab} sid=${id} />`}
+    ${tab === "console" && html`<${ConsoleTab} sid=${id} />`}
+    ${tab === "manage" && html`<${MonitorOnlyNote} origin=${location.origin} />`}
     ${tab === "procs" && html`<${Procs} list=${last.top} />`}
     ${tab === "events" && html`<div class="card"><div class="bd flush"><${AlertList} items=${d.events} empty="برای این سرور رویدادی ثبت نشده است" /></div></div>`}
     ${tab === "info" && html`<${Info} d=${d} me=${me} onChange=${reload} />`}`;
@@ -94,7 +101,23 @@ function Disks({ disks }) {
     </tr>`)}</tbody></table></div></div>`;
 }
 
-function Containers({ list, err }) {
+function tabsFor(caps, me) {
+  const t = [["charts", "نمودارها"], ["disks", "دیسک‌ها"], ["containers", "کانتینرها"], ["procs", "پردازه‌ها"]];
+  if (me.role === "admin") {
+    if (caps && caps.mode === "manage") {
+      t.push(["files", "فایل‌ها"], ["services", "سرویس‌ها"]);
+      if (caps.databases) t.push(["databases", "دیتابیس"]);
+      if (caps.ssl) t.push(["ssl", "SSL"]);
+      if (caps.console) t.push(["console", "کنسول"]);
+    } else if (caps && caps.mode === "monitor") {
+      t.push(["manage", "مدیریت"]);
+    }
+  }
+  t.push(["events", "رویدادها"], ["info", "مشخصات"]);
+  return t;
+}
+
+function Containers({ list, err, sid, manage }) {
   if (err) return html`<div class="card bd"><div class="error">${err}</div>
     <p class="muted small">agent به Docker دسترسی ندارد. نصب‌کننده کاربر icsd-agent را به گروه docker اضافه می‌کند؛
     اگر Docker بعداً نصب شده، دستور نصب را با <code>--upgrade</code> دوباره اجرا کنید.</p></div>`;
@@ -102,7 +125,7 @@ function Containers({ list, err }) {
   const order = { restarting: 0, dead: 0, exited: 2, running: 1 };
   const sorted = [...list].sort((a, b) => (order[a.state] ?? 3) - (order[b.state] ?? 3) || a.name.localeCompare(b.name));
   return html`<div class="card"><div class="tbl-wrap"><table>
-    <thead><tr><th>نام</th><th>وضعیت</th><th>image</th><th class="num">CPU</th><th class="num">حافظه</th><th>توضیح</th></tr></thead>
+    <thead><tr><th>نام</th><th>وضعیت</th><th>image</th><th class="num">CPU</th><th class="num">حافظه</th><th>توضیح</th>${manage && html`<th></th>`}</tr></thead>
     <tbody>${sorted.map((c) => html`<tr>
       <td class="ltr mono" style="text-align:right"><b>${c.name}</b></td>
       <td><${Pill} s=${c.health || c.state} /></td>
@@ -110,6 +133,7 @@ function Containers({ list, err }) {
       <td class="num">${c.state === "running" ? pct(c.cpu, 1) : "—"}</td>
       <td class="num">${c.state === "running" ? bytes(c.mem) : "—"}</td>
       <td class="faint small ltr" style="text-align:right">${c.status}</td>
+      ${manage && html`<td><${ContainerActions} sid=${sid} c=${c} manage=${manage} /></td>`}
     </tr>`)}</tbody></table></div></div>`;
 }
 

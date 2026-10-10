@@ -18,14 +18,14 @@ import time
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from icsd_hub import alerts, auth, config, db, live, security
+from icsd_hub import alerts, auth, config, db, live, rpc, security
 
 log = logging.getLogger("icsd.agents")
 router = APIRouter()
 
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4000
-MAX_MESSAGE = 512 * 1024
+MAX_MESSAGE = 4 * 1024 * 1024  # file chunks come back base64-encoded
 ENROLL_TTL = 24 * 3600
 
 
@@ -77,6 +77,8 @@ async def delete_server(sid: str) -> None:
             pass
     live.forget(sid)
     alerts.forget_server(sid)
+    from icsd_hub import domains
+    domains.forget(sid)
     for table in ("samples_1m", "samples_1h"):
         db.x(f"DELETE FROM {table} WHERE server_id=?", (sid,))
     db.x("DELETE FROM servers WHERE id=?", (sid,))
@@ -173,9 +175,15 @@ async def agent_ws(ws: WebSocket) -> None:
             if kind == "m" and isinstance(msg.get("d"), dict):
                 s = live.ingest(lv, msg["d"])
                 alerts.evaluate_sample(sid, s, int(host.get("cpus") or 1))
+            elif kind == "res":
+                fut = lv.pending.pop(str(msg.get("id", "")), None)
+                if fut is not None and not fut.done():
+                    fut.set_result(msg)
             elif kind == "hello" and isinstance(msg.get("host"), dict):
                 host = {k: v for k, v in msg["host"].items() if isinstance(v, (str, int, float))}
                 db.x("UPDATE servers SET host_json=? WHERE id=?", (json.dumps(host)[:4000], sid))
+                caps = msg.get("caps")
+                lv.caps = caps if isinstance(caps, dict) else {"mode": "monitor"}
             await asyncio.sleep(0)
     except WebSocketDisconnect:
         pass
@@ -184,6 +192,10 @@ async def agent_ws(ws: WebSocket) -> None:
     finally:
         if lv.ws is ws:
             lv.ws = None
+            for fut in lv.pending.values():
+                if not fut.done():
+                    fut.set_exception(rpc.RPCError("ارتباط با agent قطع شد", 503))
+            lv.pending.clear()
             if live.peek(sid) is lv and db.one("SELECT 1 FROM servers WHERE id=?", (sid,)):
                 live.flush(lv)
                 db.x("UPDATE servers SET last_seen=? WHERE id=?", (int(lv.last_ts or time.time()), sid))

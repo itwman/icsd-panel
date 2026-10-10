@@ -248,3 +248,29 @@ ol.steps { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; color
   .grid.servers { grid-template-columns: 1fr; }
   .form .two { grid-template-columns: 1fr; }
 }
+
+/* ── phases 2–4 ───────────────────────────────────────────── */
+.fm-bar { flex-wrap: wrap; gap: 6px; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; text-align: left; }
+.crumbs a { cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.crumbs a:hover { background: var(--surface-2); text-decoration: none; }
+.crumbs span { color: var(--faint); }
+.fm-sel { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--accent-soft); font-size: 13px; flex-wrap: wrap; }
+table.fm tr.on td { background: var(--accent-soft); }
+.fm-name { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); }
+.fm-name .icon { color: var(--accent); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.logbox { direction: ltr; text-align: left; background: #0b0f14; color: #d6dee8; border-radius: 9px; padding: 10px 12px; margin: 8px 0 0;
+  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow: auto;
+  unicode-bidi: plaintext; /* a Persian line reads right-to-left, a log line left-to-right */ }
+.logbox.tall { max-height: 60vh; }
+.card > pre.logbox { margin: 0; border-radius: 0 0 var(--radius) var(--radius); }
+.job { font-size: 13px; }
+.dialog.editor { width: min(1100px, 100%); height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.dialog.editor textarea.code { flex: 1; border: 0; border-radius: 0 0 14px 14px; direction: ltr; text-align: left; resize: none;
+  font: 13px/1.55 ui-monospace, Menlo, Consolas, monospace; padding: 14px 16px; tab-size: 4; white-space: pre; }
+.cmdline { display: block; background: var(--surface-2); border-radius: 9px; padding: 10px 12px; text-align: left; word-break: break-all; }
+tr.faint td { opacity: .6; }
+a.btn { color: var(--text); }
+a.btn:hover { text-decoration: none; border-color: var(--faint); }
+@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }

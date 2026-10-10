@@ -32,6 +32,9 @@ class AuthError(Exception):
         self.extra = extra or {}
 
 
+ELEVATE_SECONDS = 15 * 60
+
+
 @dataclass
 class User:
     id: int
@@ -39,6 +42,7 @@ class User:
     role: str
     totp_on: bool
     session: str = ""
+    elevated_until: int = 0
 
     @property
     def is_admin(self) -> bool:
@@ -158,7 +162,7 @@ def user_from_cookie(raw: str | None) -> User | None:
     s = config.settings
     h = security.sha256(raw)
     row = db.one(
-        "SELECT s.created, s.seen, u.id, u.username, u.role, u.totp_on "
+        "SELECT s.created, s.seen, s.elevated_until, u.id, u.username, u.role, u.totp_on "
         "FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id_hash=?", (h,))
     if not row:
         return None
@@ -168,7 +172,7 @@ def user_from_cookie(raw: str | None) -> User | None:
         return None
     if now - row["seen"] > 60:  # one write a minute, not one per request
         db.x("UPDATE sessions SET seen=? WHERE id_hash=?", (now, h))
-    return User(row["id"], row["username"], row["role"], bool(row["totp_on"]), h)
+    return User(row["id"], row["username"], row["role"], bool(row["totp_on"]), h, row["elevated_until"])
 
 
 def set_cookie(resp: Response, raw: str) -> None:
@@ -244,7 +248,29 @@ def current_user(request: Request) -> User:
     return user
 
 
+def elevate(user: User, code: str) -> int:
+    """Re-confirm with a fresh 2FA code before dangerous actions (delete,
+    restore, restart, console…). Valid for 15 minutes on this session only:
+    a stolen session cookie alone cannot do damage."""
+    row = db.one("SELECT totp_secret, totp_last, totp_on FROM users WHERE id=?", (user.id,))
+    if not row or not row["totp_on"]:
+        raise AuthError("اول رمز دوم را فعال کنید", 400)
+    step = security.verify_totp(row["totp_secret"], code, row["totp_last"])
+    if not step:
+        raise AuthError("کد رمز دوم نادرست است", 400)
+    until = db.now() + ELEVATE_SECONDS
+    db.x("UPDATE users SET totp_last=? WHERE id=?", (step, user.id))
+    db.x("UPDATE sessions SET elevated_until=? WHERE id_hash=?", (until, user.session))
+    return until
+
+
 def admin(user: User = Depends(current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(403, "این کار فقط برای مدیر است")
+    return user
+
+
+def elevated(user: User = Depends(admin)) -> User:
+    if user.elevated_until < db.now():
+        raise HTTPException(403, "elevation_required")
     return user

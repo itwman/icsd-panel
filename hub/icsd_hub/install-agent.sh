@@ -5,19 +5,25 @@
 #   curl -fsSL __HUB_URL__/install.sh | sudo bash -s -- --upgrade
 #   curl -fsSL __HUB_URL__/install.sh | sudo bash -s -- --uninstall
 #
-# What it does: downloads one binary from the hub (checksum verified),
-# creates the unprivileged user `icsd-agent`, enrolls, and starts a
-# hardened systemd service. It opens no port and installs no packages.
+# Two modes:
+#   manage (default)  the agent runs as root and may do what THIS server's
+#                     /etc/icsd-agent/policy.json allows (files under listed
+#                     folders, services, containers, databases, SSL, backups).
+#                     Only root on this server can edit that file.
+#   --monitor-only    read-only metrics as the unprivileged user icsd-agent.
+#
+# It opens no port and installs no packages.
 set -euo pipefail
 
 HUB="__HUB_URL__"
-TOKEN=""; MODE="install"; DOCKER="auto"
+TOKEN=""; MODE="install"; DOCKER="auto"; ROLE="manage"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --token) TOKEN="${2:-}"; shift 2 ;;
     --upgrade) MODE="upgrade"; shift ;;
     --uninstall) MODE="uninstall"; shift ;;
     --no-docker) DOCKER="off"; shift ;;
+    --monitor-only) ROLE="monitor"; shift ;;
     --hub) HUB="${2:-}"; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
@@ -86,9 +92,73 @@ fi
 chown -R root:icsd-agent "$CONF_DIR"
 chmod 0750 "$CONF_DIR"; chmod 0640 "$CONF_DIR/agent.json"
 
-cat > "$UNIT" <<'EOF'
+POLICY="$CONF_DIR/policy.json"
+if [[ $ROLE == manage ]]; then
+  if [[ ! -f "$POLICY" ]]; then
+    roots=()
+    for d in /var/www /opt /srv /home; do [[ -d $d ]] && roots+=("\"$d\""); done
+    use_docker=false
+    if [[ $DOCKER != off ]] && command -v docker >/dev/null; then use_docker=true; fi
+    # Services the panel may start/stop/restart: the usual web stack, plus the
+    # units that run Python/PHP sites on this server (found by their command).
+    svcs=("nginx" "apache2" "httpd" "php*-fpm" "mysql" "mariadb" "postgresql*" "redis*" "memcached"
+          "gunicorn*" "uwsgi*" "celery*" "supervisor" "docker" "cron" "certbot*")
+    while read -r unit; do
+      [[ -n $unit ]] && svcs+=("${unit%.service}")
+    done < <(grep -lsE '^ExecStart=.*(gunicorn|uvicorn|uwsgi|daphne|celery|manage\.py|node|pm2)' \
+               /etc/systemd/system/*.service 2>/dev/null | xargs -r -n1 basename | grep -v '^icsd-' || true)
+    svc_json="$(printf '"%s",' "${svcs[@]}")"; svc_json="[${svc_json%,}]"
+    cat > "$POLICY" <<EOF
+{
+  "files": {
+    "roots": [$(IFS=,; echo "${roots[*]}")],
+    "readonly": ["/etc/nginx", "/var/log"],
+    "max_upload_mb": 512
+  },
+  "services": $svc_json,
+  "deny_services": [],
+  "docker": $use_docker,
+  "databases": true,
+  "ssl": true,
+  "console": false,
+  "backup_dir": "/var/backups/icsd"
+}
+EOF
+    say "created $POLICY — edit it on this server to widen or narrow what the panel may do"
+  else
+    say "keeping existing $POLICY"
+  fi
+  chown root:root "$POLICY"; chmod 0600 "$POLICY"
+  install -d -m 0700 /var/backups/icsd
+  cat > "$UNIT" <<'EOF'
 [Unit]
-Description=ICSD Panel agent
+Description=ICSD Panel agent (manage mode; limits in /etc/icsd-agent/policy.json)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/local/bin/icsd-agent run --config /etc/icsd-agent/agent.json --policy /etc/icsd-agent/policy.json
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+LockPersonality=yes
+# Backups and archives must never slow the sites down.
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
+EOF
+else
+  rm -f "$POLICY"   # monitor-only: no policy, so the agent refuses every action
+  cat > "$UNIT" <<'EOF'
+[Unit]
+Description=ICSD Panel agent (monitor only)
 After=network-online.target
 Wants=network-online.target
 
@@ -117,12 +187,13 @@ CPUQuota=20%
 [Install]
 WantedBy=multi-user.target
 EOF
+fi
 systemctl daemon-reload
 systemctl enable icsd-agent >/dev/null 2>&1
 systemctl restart icsd-agent
 sleep 2
 if systemctl is-active --quiet icsd-agent; then
-  say "icsd-agent is running. The server should appear online in the panel within seconds."
+  say "icsd-agent is running ($ROLE mode). The server should appear online in the panel within seconds."
 else
   journalctl -u icsd-agent -n 20 --no-pager || true
   die "icsd-agent did not start (log above)"
